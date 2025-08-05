@@ -23,7 +23,7 @@ Run Virtocommerce backend, Virtocommerce frontend, database server, Redis, Elast
 Run the script to create a local folder `VirtoLocal` containing all necessary files:
 
 ```pwsh
-!TODO!Invoke-Expression (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/AndrewEhlo/test-local-run/refs/heads/main/VirtoLocal_create_local_files.ps1" -UseBasicParsing).Content
+!TODO!Invoke-Expression (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/main/VirtoLocal_create_local_files.ps1" -UseBasicParsing).Content
 ```
 This script creates an `VirtoLocal` folder containing:
 - `docker-compose.yml`: Docker Compose configuration for VirtoCommerce solution
