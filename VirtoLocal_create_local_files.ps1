@@ -53,7 +53,7 @@ Write-Host "✓ .env file created" -ForegroundColor Green
 
 # download management scripts
 Write-Host "Downloading management scripts..." -ForegroundColor Yellow
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/dev/build-VC-solution.ps1" -OutFile (Join-Path $targetFolder "build-VC-solution.ps1")
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/VCST-2500/build-VC-solution.ps1" -OutFile (Join-Path $targetFolder "build-VC-solution.ps1")
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/dev/start-VC-solution.ps1" -OutFile (Join-Path $targetFolder "start-VC-solution.ps1")
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/dev/stop-VC-solution.ps1" -OutFile (Join-Path $targetFolder "stop-VC-solution.ps1")
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/dev/remove-VC-solution.ps1" -OutFile (Join-Path $targetFolder "remove-VC-solution.ps1")
