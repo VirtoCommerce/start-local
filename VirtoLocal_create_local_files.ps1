@@ -89,6 +89,15 @@ Write-Host "Downloading docker-compose file..." -ForegroundColor Yellow
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/dev/docker-compose.yml" -OutFile (Join-Path $targetFolder "docker-compose.yml")
 Write-Host "✓ docker-compose file downloaded" -ForegroundColor Green
 
-Write-Host "File operation completed. Running start script..." -ForegroundColor Green
-Invoke-Expression "./$targetFolder/start-VC-solution.ps1"
+Write-Host "File operation completed." -ForegroundColor Green
+
+# Ask user to proceed with building the solution
+$proceed = Read-Host "Do you want to proceed with building the VirtoCommerce solution? (y/N)"
+if ($proceed -eq "y" -or $proceed -eq "Y") {
+    Write-Host "Starting build process..." -ForegroundColor Yellow
+    Invoke-Expression "./$targetFolder/build-VC-solution.ps1"
+}
+else {
+    Write-Host "Build process skipped. You can run it manually later using: ./$targetFolder/build-VC-solution.ps1" -ForegroundColor Yellow
+}
 
