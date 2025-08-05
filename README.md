@@ -35,6 +35,14 @@ Created files:
 - `stop-VC-solution.ps1`: Script stops VC solution but does NOT remove the volumes associated with the docker containers
 - `remove-VC-solution.ps1`: Script removes docker volumes associated with the containers, removes backend and frontend docker images from local docker storage
 
+The first step of the setup process is to run a `build-VC-solution.ps1` script. 
+This script has the only parameter that control the versions of the VirtoCommerce components:
+- `vcSolutionVersion`: This parameter accepts `latest-stable` or `edge` values. The `latest-stable` value installs the latest stable [bundle](https://github.com/VirtoCommerce/vc-modules/tree/master/bundles) of the backend with a compatible version of the frontend. The `edge` value installs the latest available releases of backend and frontend.
+
+The second step is to run the `start-VC-solution.ps1` script. The Docker Compose file runs the solution, including the VirtoCommerce backend and frontend, PostgreSQL, Elasticsearch, and Kibana. [Docker Compose](https://docs.docker.com/reference/cli/docker/compose/).
+
+To stop the containers, use the `stop-VC-solution.ps1` script. This script stops the containers but retains the volumes associated with them, effectively saving all database data and file data to persistent volumes.
+
 ### Select the versions to install
 
 The versions of the PGSQL and Elastic Stack components in the solution and the ports they use are controlled by the variables in the .env file. The default values are:
@@ -56,17 +64,6 @@ This settings can be setup manually by editing `.env` file.
 
 > [!IMPORTANT]
 > After changing the `.env` file, restart the services using `stop-VC-solution.ps1` and `start-VC-solution.ps1`
-
-## 🐳 Start and stop the services
-
-The first step of the setup process is to run a `build-VC-solution.ps1` script. 
-This script has two parameters that control the versions of the VirtoCommerce components:
-- `vcModulesBundle`: This parameter controlls which stable bundle to use for the backend. [More info](https://github.com/VirtoCommerce/vc-modules/tree/master/bundles). Ex.: `latest` or`v10`
-- `frontendRelease`: this parameter controlls the frontend release to use. Ex.: `latest` or `2.27.0`. [More info](https://github.com/VirtoCommerce/vc-frontend/releases)
-
-The second step is to run the `start-VC-solution.ps1` script. The Docker Compose file runs the solution, including the VirtoCommerce backend and frontend, PostgreSQL, Elasticsearch, and Kibana. [Docker Compose](https://docs.docker.com/reference/cli/docker/compose/).
-
-To stop the containers, use the `stop-VC-solution.ps1` script. This script stops the containers but retains the volumes associated with them, effectively saving all database data and file data to persistent volumes.
 
 
 ## 🗑️ Uninstallation
