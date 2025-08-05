@@ -50,10 +50,10 @@ Write-Host "✓ .env file created" -ForegroundColor Green
 
 # download management scripts
 Write-Host "Downloading management scripts..." -ForegroundColor Yellow
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/main/build-VC-solution.ps1" -OutFile (Join-Path $targetFolder "build-VC-solution.ps1")
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/main/start-VC-solution.ps1" -OutFile (Join-Path $targetFolder "start-VC-solution.ps1")
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/main/stop-VC-solution.ps1" -OutFile (Join-Path $targetFolder "stop-VC-solution.ps1")
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/main/remove-VC-solution.ps1" -OutFile (Join-Path $targetFolder "remove-VC-solution.ps1")
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/dev/build-VC-solution.ps1" -OutFile (Join-Path $targetFolder "build-VC-solution.ps1")
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/dev/start-VC-solution.ps1" -OutFile (Join-Path $targetFolder "start-VC-solution.ps1")
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/dev/stop-VC-solution.ps1" -OutFile (Join-Path $targetFolder "stop-VC-solution.ps1")
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/dev/remove-VC-solution.ps1" -OutFile (Join-Path $targetFolder "remove-VC-solution.ps1")
 Write-Host "✓ Management scripts downloaded" -ForegroundColor Green
 
 # donwload scripts-helpers
@@ -62,9 +62,9 @@ $scriptsDir = Join-Path $targetFolder "scripts"
 $backendDir = Join-Path $targetFolder "backend"
 $frontendDir = Join-Path $targetFolder "frontend"
 New-Folder $scriptsDir
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/main/scripts/check-installed-modules.ps1" -OutFile (Join-Path $scriptsDir "check-installed-modules.ps1")
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/main/scripts/setup-sampledata.ps1" -OutFile (Join-Path $scriptsDir "setup-sampledata.ps1")
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/main/scripts/watch-url-up.ps1" -OutFile (Join-Path $scriptsDir "watch-url-up.ps1")
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/dev/scripts/check-installed-modules.ps1" -OutFile (Join-Path $scriptsDir "check-installed-modules.ps1")
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/dev/scripts/setup-sampledata.ps1" -OutFile (Join-Path $scriptsDir "setup-sampledata.ps1")
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/dev/scripts/watch-url-up.ps1" -OutFile (Join-Path $scriptsDir "watch-url-up.ps1")
 Write-Host "✓ Scripts-helpers downloaded" -ForegroundColor Green
 
 # download config files for the backend
@@ -77,13 +77,13 @@ Write-Host "✓ Config files for the backend downloaded" -ForegroundColor Green
 #download config files for the frontend
 Write-Host "Downloading config files for the frontend..." -ForegroundColor Yellow
 New-Folder $frontendDir
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/main/frontend/Dockerfile" -OutFile (Join-Path $frontendDir "Dockerfile")
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/main/frontend/nginx.conf" -OutFile (Join-Path $frontendDir "nginx.conf")
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/dev/frontend/Dockerfile" -OutFile (Join-Path $frontendDir "Dockerfile")
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/dev/frontend/nginx.conf" -OutFile (Join-Path $frontendDir "nginx.conf")
 Write-Host "✓ Config files for the frontend downloaded" -ForegroundColor Green
 
 # download docker-compose file
 Write-Host "Downloading docker-compose file..." -ForegroundColor Yellow
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/main/docker-compose.yml" -OutFile (Join-Path $targetFolder "docker-compose.yml")
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/dev/docker-compose.yml" -OutFile (Join-Path $targetFolder "docker-compose.yml")
 Write-Host "✓ docker-compose file downloaded" -ForegroundColor Green
 
 Write-Host "Done" -ForegroundColor Green

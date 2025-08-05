@@ -23,7 +23,7 @@ Run the Virtocommerce backend, frontend, database server, Redis Elasticsearch, a
 Run the script to create a local folder `VirtoLocal` containing all the necessary files:
 
 ```pwsh
-Invoke-Expression (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/main/VirtoLocal_create_local_files.ps1" -UseBasicParsing).Content
+Invoke-Expression (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/dev/VirtoLocal_create_local_files.ps1" -UseBasicParsing).Content
 ```
 Created files:
 - `docker-compose.yml`: Docker Compose configuration for VirtoCommerce solution
