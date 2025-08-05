@@ -19,7 +19,8 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "✓ VC solution started" -ForegroundColor Green
 
 Write-Host "Checking installed modules..." -ForegroundColor Yellow
-Invoke-Expression "./$scriptsDir/check-installed-modules.ps1 -ApiUrl http://localhost:8090 -ContainerId '($solutionFolder.ToLower())-vc-platform-web-1' -watchUrlScriptPath $scriptsDir/watch-url-up.ps1"
+$solutionFolderLower = $solutionFolder.ToLower()
+Invoke-Expression "./$scriptsDir/check-installed-modules.ps1 -ApiUrl http://localhost:8090 -ContainerId '$solutionFolderLower-vc-platform-web-1' -watchUrlScriptPath $scriptsDir/watch-url-up.ps1"
 Write-Host "✓ Installed modules checked" -ForegroundColor Green
 
 Write-Host "Setting up sampledata..." -ForegroundColor Yellow
