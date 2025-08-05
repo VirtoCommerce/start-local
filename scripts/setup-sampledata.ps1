@@ -16,7 +16,7 @@ function Get-AuthToken {
     $grant_type = "password"
     $content_type = "application/x-www-form-urlencoded"
 
-    $body = @{username=$username; password=$password; grant_type=$grant_type}
+    $body = @{username = $username; password = $password; grant_type = $grant_type }
     try {
         $response = Invoke-WebRequest -Uri $appAuthUrl -Method Post -ContentType $content_type -Body $body -SkipCertificateCheck -MaximumRetryCount 5 -RetryIntervalSec 5
         $responseContent = $response.Content | ConvertFrom-Json
@@ -29,9 +29,10 @@ function Get-AuthToken {
 }  
 
 $sdStateUrl = "$ApiUrl/api/platform/pushnotifications"
-if([string]::IsNullOrWhiteSpace($SampleDataSrc)){
+if ([string]::IsNullOrWhiteSpace($SampleDataSrc)) {
     $sdInstallUrl = "$ApiUrl/api/platform/sampledata/autoinstall"
-} else {
+}
+else {
     $sdInstallUrl = "$ApiUrl/api/platform/sampledata/import?url=$SampleDataSrc"
 }
 $appAuthUrl = "$ApiUrl/connect/token"
@@ -57,7 +58,7 @@ do {
         $notify = $state.notifyEvents
         if ($notify.errorCount -gt 0) {
             Write-Output $notify
-            Write-Host "`e[31mSample data installation filed."
+            Write-Host "`e[31mSample data installation failed."
             exit 1
         }
     }
