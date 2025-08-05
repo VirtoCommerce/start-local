@@ -44,6 +44,9 @@ KIBANA_PASSWORD=$(New-RandomPassword)
 PGSQL_PORT=5432
 REDIS_PORT=6379
 FRONTEND_PORT=80
+ES_CLUSTER_NAME=elasticsearch
+ES_LICENSE=basic
+ES_MEM_LIMIT=1g
 "@
 Set-Content -Path $envFile -Value $envFileContent
 Write-Host "✓ .env file created" -ForegroundColor Green

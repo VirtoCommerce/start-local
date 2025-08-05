@@ -18,7 +18,7 @@ services:
   vc-db:
     image: postgres:${PGSQL_VERSION:-16.9}
     ports:
-      - "${DOCKER_SQL_PORT:-5432}:5432"
+      - "${PGSQL_PORT:-5432}:5432"
     expose:  
       - 5432  
     environment: 
@@ -52,17 +52,17 @@ services:
       - virto
     environment:
       - node.name=es
-      - cluster.name=${CLUSTER_NAME:-elasticsearch}
+      - cluster.name=${ES_CLUSTER_NAME:-elasticsearch}
       - cluster.initial_master_nodes=es
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-v!rto_Labs!}
       - bootstrap.memory_lock=true
       - xpack.security.enabled=false
       - xpack.security.http.ssl.enabled=false
       - xpack.security.transport.ssl.enabled=false
-      - xpack.license.self_generated.type=${LICENSE:-basic}
+      - xpack.license.self_generated.type=${ES_LICENSE:-basic}
       - xpack.ml.use_auto_machine_memory_percent=true
     restart: "on-failure"
-    mem_limit: ${MEM_LIMIT:-1g}
+    mem_limit: ${ES_MEM_LIMIT:-1g}
     ulimits:
       memlock:
         soft: -1
@@ -105,22 +105,22 @@ services:
       - vc-platform-web
     image: vc-frontend:local-latest
     ports:
-      - "${DOCKER_FRONTEND_PORT:-80}:80"
+      - "${FRONTEND_PORT:-80}:80"
     networks:
       - virto
 
   vc-platform-web:
     image: vc-platform:local-latest
     ports:
-      - "${DOCKER_PLATFORM_PORT:-8090}:80"
+      - "${PLATFORM_PORT:-8090}:80"
     environment:
       - ASPNETCORE_URLS=http://+
       - VirtoCommerce:AllowInsecureHttp=true
       - VirtoCommerce:Hangfire:JobStorageType=Memory
       - DatabaseProvider=PostgreSql
       - ConnectionStrings:VirtoCommerce=User ID=postgres;Password=${DB_PASSWORD:-v!rto_Labs!};Host=vc-db;Port=5432;Database=VirtoCommerce3
-      - Assets:FileSystem:PublicUrl=http://localhost:${DOCKER_PLATFORM_PORT:-8090}/assets/
-      - Content:FileSystem:PublicUrl=http://localhost:${DOCKER_PLATFORM_PORT:-8090}/cms-content/
+      - Assets:FileSystem:PublicUrl=http://localhost:${PLATFORM_PORT:-8090}/assets/
+      - Content:FileSystem:PublicUrl=http://localhost:${PLATFORM_PORT:-8090}/cms-content/
       - Search:Provider=ElasticSearch8
       - Search:ElasticSearch8:Server=http://es:${ES_PORT:-9200}
       - Search:ElasticSearch8:User=elastic
