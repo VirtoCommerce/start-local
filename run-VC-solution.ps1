@@ -42,7 +42,7 @@ if ($installFrontend) {
         Write-Host "Build output: $buildResult" -ForegroundColor Red
         exit 1
     }
-    Write-Host "✓ Frontend Docker image built successfully" -ForegroundColor Green
+    Write-Host "... Frontend Docker image built successfully" -ForegroundColor Green
     Remove-Item -Recurse -Force ./frontend/artifact
 
     # set docker compose file

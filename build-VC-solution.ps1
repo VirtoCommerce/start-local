@@ -48,7 +48,7 @@ if ($vcSolutionVersion -eq "latest-stable") {
         Write-Host "Build command failed with exit code: $LASTEXITCODE" -ForegroundColor Red
         exit 1
     }
-    Write-Host "✓ Backend built successfully" -ForegroundColor Green
+    Write-Host "... Backend built successfully" -ForegroundColor Green
 }
 else {
     # build latest dev
@@ -63,7 +63,7 @@ else {
         Write-Host "Build command failed with exit code: $LASTEXITCODE" -ForegroundColor Red
         exit 1
     }
-    Write-Host "✓ Backend built successfully" -ForegroundColor Green
+    Write-Host "... Backend built successfully" -ForegroundColor Green
 }
 
 # build backend Docker image
@@ -74,14 +74,14 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "Build command failed with exit code: $LASTEXITCODE" -ForegroundColor Red
     exit 1
 }
-Write-Host "✓ Backend Docker image built successfully" -ForegroundColor Green
+Write-Host "... Backend Docker image built successfully" -ForegroundColor Green
 
 #remove publish folder
 Write-Host "Removing publish folder..." -ForegroundColor Yellow
 if (Test-Path -Path $backendDir/publish) {
     Remove-Item -Recurse -Force $backendDir/publish
 }
-Write-Host "✓ Publish folder removed" -ForegroundColor Green
+Write-Host "... Publish folder removed" -ForegroundColor Green
 
 # download and extract frontend files
 Write-Host "Downloading and extracting frontend files..." -ForegroundColor Yellow
@@ -90,7 +90,7 @@ New-Folder $frontendDir
 Invoke-WebRequest -Uri $frontendZipUrl -OutFile $frontendDir/frontend.zip
 Expand-Archive -Path $frontendDir/frontend.zip -DestinationPath $frontendDir/artifact
 Remove-Item -Path $frontendDir/frontend.zip -Force
-Write-Host "✓ Frontend files downloaded and extracted" -ForegroundColor Green
+Write-Host "... Frontend files downloaded and extracted" -ForegroundColor Green
 
 # build frontend Docker image
 Write-Host "Building frontend Docker image..." -ForegroundColor Yellow
@@ -100,7 +100,7 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "Build command failed with exit code: $LASTEXITCODE" -ForegroundColor Red
     exit 1
 }
-Write-Host "✓ Frontend Docker image built successfully" -ForegroundColor Green
+Write-Host "... Frontend Docker image built successfully" -ForegroundColor Green
 Remove-Item -Recurse -Force $frontendDir/artifact
 
 # Ask user to proceed with running the solution

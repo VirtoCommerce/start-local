@@ -15,4 +15,4 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "docker-compose command failed with exit code: $LASTEXITCODE" -ForegroundColor Red
     exit 1
 }
-Write-Host "✓ VC solution stopped" -ForegroundColor Green
+Write-Host "... VC solution stopped" -ForegroundColor Green
