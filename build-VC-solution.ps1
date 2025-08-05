@@ -1,7 +1,7 @@
 param (
     [string]$targetFolder = "VirtoLocal",
     [ValidateSet("latest-stable", "edge")]
-    [string]$vcSolutionVersion = "edge"
+    [string]$vcSolutionVersion = "latest-stable"
     # [string]$frontendRelease = "latest", # https://github.com/VirtoCommerce/vc-frontend/releases
     # [string]$vcModulesBundle = "v10" # https://github.com/VirtoCommerce/vc-modules/tree/master/bundles
 )
