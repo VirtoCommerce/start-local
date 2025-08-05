@@ -90,5 +90,5 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-lo
 Write-Host "✓ docker-compose file downloaded" -ForegroundColor Green
 
 Write-Host "File operation completed. Running start script..." -ForegroundColor Green
-./$targetFolder/start-VC-solution.ps1
+Invoke-Expression "./$targetFolder/start-VC-solution.ps1"
 
