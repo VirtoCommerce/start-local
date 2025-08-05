@@ -1,6 +1,6 @@
 # 🚀 Try the Virtocommerce solution locally
 
-Run the Virtocommerce backend, frontend, database server, Redis Elasticsearch, and Kibana on your local machine with a simple PowerShell script. This setup uses Docker behind the scenes to install and run the services.
+Run the Virtocommerce backend, Virtocommerce frontend, database server, Redis, Elasticsearch, and Kibana on your local machine with a simple PowerShell script. This setup uses Docker behind the scenes to install and run the services.
 
 > [!IMPORTANT]  
 > This script is for local testing only. Do not use it in production!
@@ -39,7 +39,7 @@ The first step of the setup process is to run a `build-VC-solution.ps1` script.
 This script has the only parameter that control the versions of the VirtoCommerce components:
 - `vcSolutionVersion`: This parameter accepts `latest-stable` or `edge` values. The `latest-stable` value installs the latest stable [bundle](https://github.com/VirtoCommerce/vc-modules/tree/master/bundles) of the backend with a compatible version of the frontend. The `edge` value installs the latest available releases of backend and frontend.
 
-The second step is to run the `start-VC-solution.ps1` script. The Docker Compose file runs the solution, including the VirtoCommerce backend and frontend, PostgreSQL, Elasticsearch, and Kibana. [Docker Compose](https://docs.docker.com/reference/cli/docker/compose/).
+The second step is to run the `start-VC-solution.ps1` script. The Docker Compose file runs the solution, including the VirtoCommerce backend and frontend, PostgreSQL,Redis, Elasticsearch, and Kibana. [Docker Compose](https://docs.docker.com/reference/cli/docker/compose/).
 
 To stop the containers, use the `stop-VC-solution.ps1` script. This script stops the containers but retains the volumes associated with them, effectively saving all database data and file data to persistent volumes.
 
