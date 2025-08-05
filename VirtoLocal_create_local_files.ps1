@@ -92,8 +92,8 @@ Write-Host "✓ docker-compose file downloaded" -ForegroundColor Green
 Write-Host "File operation completed." -ForegroundColor Green
 
 # Ask user to proceed with building the solution
-$proceed = Read-Host "Do you want to proceed with building the VirtoCommerce solution? (y/N)"
-if ($proceed -eq "y" -or $proceed -eq "Y") {
+$proceed = Read-Host "Do you want to proceed with building the VirtoCommerce solution? (Y/n)"
+if ($proceed -eq "" -or $proceed -eq "y" -or $proceed -eq "Y") {
     Write-Host "Starting build process..." -ForegroundColor Yellow
     Invoke-Expression "./$targetFolder/build-VC-solution.ps1"
 }

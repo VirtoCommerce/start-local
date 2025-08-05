@@ -104,8 +104,8 @@ Write-Host "✓ Frontend Docker image built successfully" -ForegroundColor Green
 Remove-Item -Recurse -Force $frontendDir/artifact
 
 # Ask user to proceed with running the solution
-$proceed = Read-Host "Do you want to proceed with running the VirtoCommerce solution? (y/N)"
-if ($proceed -eq "y" -or $proceed -eq "Y") {
+$proceed = Read-Host "Do you want to proceed with running the VirtoCommerce solution? (Y/n)"
+if ($proceed -eq "" -or $proceed -eq "y" -or $proceed -eq "Y") {
     Write-Host "Starting run process..." -ForegroundColor Yellow
     Invoke-Expression "./$targetFolder/start-VC-solution.ps1"
 }
