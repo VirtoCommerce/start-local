@@ -1,31 +1,37 @@
-# 🚀 Try the Virtocommerce solution locally
+# 🚀 Run Virtocommerce Locally with Docker
 
-Run the Virtocommerce backend, Virtocommerce frontend, database server, Redis, Elasticsearch, and Kibana on your local machine with a simple PowerShell script. This setup uses Docker behind the scenes to install and run the services.
+Set up a complete Virtocommerce environment on your local machine with a single PowerShell script. The solution includes:
+- Virtocommerce backend
+- Virtocommerce frontend
+- PostgreSQL database
+- Redis
+- Elasticsearch
+- Kibana
 
 > [!IMPORTANT]  
-> This script is for local testing only. Do not use it in production!
-> !TODO! For production installations refer to the official documentation for [Elasticsearch](https://www.elastic.co/downloads/elasticsearch) and [Kibana](https://www.elastic.co/downloads/kibana).
-
+> This setup is for local development and testing only. Not for production use!
+> !TODO! For production deployments, consult the official documentation for [Elasticsearch](https://www.elastic.co/downloads/elasticsearch) and [Kibana](https://www.elastic.co/downloads/kibana).
 
 ## 💻 System Requirements
 
-- ~5 GB of available disk space
-- [.NET SDK](https://dotnet.microsoft.com/en-us/download/dotnet): Required only for the `vc-build` installation
-- [vc-build](https://github.com/VirtoCommerce/vc-build): Command to install `dotnet tool install VirtoCommerce.GlobalTool -g`
-- [Docker](https://www.docker.com/): On non-Windows systems Docker is supposed to be configured so that it does not require sudo to run Docker commands
-- Works on Windows
-- On Linux and MacOS it works using pwsh [Install PowerShell on Linux](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-linux), [Installing PowerShell on macOS](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-macos)
+- ~5 GB available disk space
+- [.NET SDK](https://dotnet.microsoft.com/download) (Required for `vc-build` installation)
+- [vc-build tool](https://github.com/VirtoCommerce/vc-build) (Install with: `dotnet tool install VirtoCommerce.GlobalTool -g`)
+- [Docker](https://www.docker.com/) (On Linux/MacOS, configure Docker to run without sudo)
+- Compatible with Windows
+- For Linux/MacOS: Requires PowerShell ([Linux install](https://learn.microsoft.com/powershell/scripting/install/installing-powershell-on-linux), [macOS install](https://learn.microsoft.com/powershell/scripting/install/installing-powershell-on-macos))
 
-## 🏃‍♀️‍➡️ Getting started
+## 🏃‍♀️ Getting Started
 
-### Setup
+### Initial Setup
 
-Run the script to create a local folder `VirtoLocal` containing all the necessary files:
+Run this command to create a local `VirtoLocal` directory with all required files:
 
 ```pwsh
-Invoke-Expression (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/dev/VirtoLocal_create_local_files.ps1" -UseBasicParsing).Content
+Invoke-Expression (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/dev/VirtoLocal_create_local_files.ps1" -UseBasicParsing).Content
 ```
-Created files:
+
+Created files and folders:
 - `docker-compose.yml`: Docker Compose configuration for VirtoCommerce solution
 - `backend` folder: Dockerfile and script(s) for the backend
 - `frontend` folder: Dockerfile and config file(s) for the frontend
@@ -35,17 +41,24 @@ Created files:
 - `stop-VC-solution.ps1`: Script stops VC solution but does NOT remove the volumes associated with the docker containers
 - `remove-VC-solution.ps1`: Script removes docker volumes associated with the containers, removes backend and frontend docker images from local docker storage
 
-The first step of the setup process is to run a `build-VC-solution.ps1` script. 
-This script has the only parameter that control the versions of the VirtoCommerce components:
-- `vcSolutionVersion`: This parameter accepts `latest-stable` or `edge` values. The `latest-stable` value installs the latest stable [bundle](https://github.com/VirtoCommerce/vc-modules/tree/master/bundles) of the backend with a compatible version of the frontend. The `edge` value installs the latest available releases of backend and frontend.
+Installation Steps
+1. First run `build-VC-solution.ps1` with these version options:
+- `vcSolutionVersion` parameter:
+    - `latest-stable`: Installs the latest stable backend bundle with compatible frontend
+    - `edge: Installs` the newest backend and frontend releases
 
-The second step is to run the `start-VC-solution.ps1` script. The Docker Compose file runs the solution, including the VirtoCommerce backend and frontend, PostgreSQL,Redis, Elasticsearch, and Kibana. [Docker Compose](https://docs.docker.com/reference/cli/docker/compose/).
+2. Then run `start-VC-solution.ps1` to launch:
+- Virtocommerce backend/frontend
+- PostgreSQL
+- Redis
+- Elasticsearch
+- Kibana
 
-To stop the containers, use the `stop-VC-solution.ps1` script. This script stops the containers but retains the volumes associated with them, effectively saving all database data and file data to persistent volumes.
+Use `stop-VC-solution.ps1` to pause containers while preserving your data.
 
-### Select the versions to install
+### Version Configuration
 
-The versions of the PGSQL and Elastic Stack components in the solution and the ports they use are controlled by the variables in the .env file. The default values are:
+Customize versions and ports in the `.env` file. Default settings:
 ```
 PGSQL_VERSION=16.9
 STACK_VERSION=8.18.0
@@ -60,7 +73,6 @@ PGSQL_PORT=5432
 REDIS_PORT=6379
 FRONTEND_PORT=80
 ```
-This settings can be setup manually by editing `.env` file.
 
 > [!IMPORTANT]
 > After changing the `.env` file, restart the services using `stop-VC-solution.ps1` and `start-VC-solution.ps1`
@@ -68,10 +80,14 @@ This settings can be setup manually by editing `.env` file.
 
 ## 🗑️ Uninstallation
 
-If you need to stop the solution and remove all the data, use the script `remove-VC-solution.ps1`. This script stops the containers, removes the data in the persistent volumes, and deletes the `vc-platform:local-latest` and `vc-frontend:local-latest` Docker images.
+To fully uninstall and erase all data:
+1. Run `remove-VC-solution.ps1`
+- Stops containers
+- Deletes persistent volumes
+- Removes vc-platform:local-latest and vc-frontend:local-latest images
 
 > [!WARNING]  
-> This erases all data permanently.
+> This permanently destroys all data.
 
 > [!WARNING]  
-> The PostgresSQL, Redis, Elastic Search and Kibana images will NOT be removed by the script.
+> PostgresSQL, Redis, Elasticsearch, and Kibana base images remain installed.
