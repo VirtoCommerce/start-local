@@ -1,7 +1,7 @@
 param (
     [string]$targetFolder = "VirtoLocal",
     [ValidateSet("latest-stable", "edge")]
-    [string]$vcSolutionVersion = "latest-stable"
+    [string]$vcSolutionVersion = "edge"
     # [string]$frontendRelease = "latest", # https://github.com/VirtoCommerce/vc-frontend/releases
     # [string]$vcModulesBundle = "v10" # https://github.com/VirtoCommerce/vc-modules/tree/master/bundles
 )
@@ -76,20 +76,20 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "✓ Backend Docker image built successfully" -ForegroundColor Green
 
-# #remove publish folder
-# Write-Host "Removing publish folder..." -ForegroundColor Yellow
-# if (Test-Path -Path $backendDir/publish) {
-#     Remove-Item -Recurse -Force $backendDir/publish
-# }
-# Write-Host "✓ Publish folder removed" -ForegroundColor Green
+#remove publish folder
+Write-Host "Removing publish folder..." -ForegroundColor Yellow
+if (Test-Path -Path $backendDir/publish) {
+    Remove-Item -Recurse -Force $backendDir/publish
+}
+Write-Host "✓ Publish folder removed" -ForegroundColor Green
 
 # download and extract frontend files
 Write-Host "Downloading and extracting frontend files..." -ForegroundColor Yellow
 $frontendDir = Join-Path $targetFolder "frontend"
 New-Folder $frontendDir
-Invoke-WebRequest -Uri $frontendZipUrl -OutFile $frontendDir/$zipName
-Expand-Archive -Path $frontendDir/$zipName -DestinationPath $frontendDir/artifact
-Remove-Item -Path $frontendDir/$zipName
+Invoke-WebRequest -Uri $frontendZipUrl -OutFile $frontendDir/frontend.zip
+Expand-Archive -Path $frontendDir/frontend.zip -DestinationPath $frontendDir/artifact
+Remove-Item -Path $frontendDir/frontend.zip -Force
 Write-Host "✓ Frontend files downloaded and extracted" -ForegroundColor Green
 
 # build frontend Docker image
