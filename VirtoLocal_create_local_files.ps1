@@ -95,7 +95,20 @@ Write-Host "File operation completed." -ForegroundColor Green
 $proceed = Read-Host "Do you want to proceed with building the VirtoCommerce solution? (Y/n)"
 if ($proceed -eq "" -or $proceed -eq "y" -or $proceed -eq "Y") {
     Write-Host "Starting build process..." -ForegroundColor Yellow
-    Invoke-Expression "./$targetFolder/build-VC-solution.ps1"
+    
+    # Ask user to select the version
+    Write-Host "Select the version to install:" -ForegroundColor Cyan
+    Write-Host "1. latest-stable - Latest stable bundle of backend with compatible frontend" -ForegroundColor White
+    Write-Host "2. edge - Latest available releases of backend and frontend" -ForegroundColor White
+    $versionChoice = Read-Host "Enter your choice (1 or 2, default is 1)"
+    
+    $vcSolutionVersion = "latest-stable"  # default
+    if ($versionChoice -eq "2") {
+        $vcSolutionVersion = "edge"
+    }
+    
+    Write-Host "Using version: $vcSolutionVersion" -ForegroundColor Green
+    Invoke-Expression "./$targetFolder/build-VC-solution.ps1 -vcSolutionVersion $vcSolutionVersion"
 }
 else {
     Write-Host "Build process skipped. You can run it manually later using: ./$targetFolder/build-VC-solution.ps1" -ForegroundColor Yellow
