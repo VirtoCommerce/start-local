@@ -89,4 +89,6 @@ Write-Host "Downloading docker-compose file..." -ForegroundColor Yellow
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/dev/docker-compose.yml" -OutFile (Join-Path $targetFolder "docker-compose.yml")
 Write-Host "✓ docker-compose file downloaded" -ForegroundColor Green
 
-Write-Host "Done" -ForegroundColor Green
+Write-Host "File operation completed. Running start script..." -ForegroundColor Green
+./$targetFolder/start-VC-solution.ps1
+
