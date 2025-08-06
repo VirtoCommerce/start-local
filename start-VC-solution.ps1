@@ -43,7 +43,7 @@ foreach ($port in $requiredPorts) {
     Write-Host "Checking port '$port'..."
     $portInUse = Test-PortInUse -Port $port
     if ($portInUse) { 
-        Write-Error "Local TCP port $port is busy, please review ports configuration in '.env' file" -ForegroundColor Red
+        Write-Host "Local TCP port $port is busy, please review ports configuration in '.env' file" -ForegroundColor Red
         exit 1
     }
     else {
