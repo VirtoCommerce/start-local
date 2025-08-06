@@ -41,7 +41,9 @@ Created files and folders:
 - `stop-VC-solution.ps1`: Script stops VC solution but does NOT remove the volumes associated with the docker containers
 - `remove-VC-solution.ps1`: Script removes docker volumes associated with the containers, removes backend and frontend docker images from local docker storage
 
-Installation Steps
+By default `build-VC-solution` script is executed automatically after the files are created and `start-VC-solution` script is executed automatically after build is complet. However the execution can be skipped.
+
+The manual installation steps are as follows:
 1. First run `build-VC-solution.ps1` with these version options:
 - `vcSolutionVersion` parameter:
     - `latest-stable`: Installs the latest stable backend bundle with compatible frontend
