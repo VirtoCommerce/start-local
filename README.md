@@ -1,8 +1,8 @@
-# 🚀 Run Virtocommerce Locally with Docker
+# 🚀 Run Virto Commerce Locally with Docker
 
-Set up a complete Virtocommerce environment on your local machine with a single PowerShell script. The solution includes:
-- Virtocommerce backend
-- Virtocommerce frontend
+Set up a complete Virto Commerce environment on your local machine with a single PowerShell script. The solution includes:
+- Virto Commerce Backend
+- Virto Commerce Frontend
 - PostgreSQL database
 - Redis
 - Elasticsearch
@@ -13,7 +13,6 @@ Set up a complete Virtocommerce environment on your local machine with a single 
 > !TODO! For production deployments, consult the official documentation for [Elasticsearch](https://www.elastic.co/downloads/elasticsearch) and [Kibana](https://www.elastic.co/downloads/kibana).
 
 ## 💻 System Requirements
-
 - ~5 GB available disk space
 - [.NET SDK](https://dotnet.microsoft.com/download) (Required for `vc-build` installation)
 - [vc-build tool](https://github.com/VirtoCommerce/vc-build) (Install with: `dotnet tool install VirtoCommerce.GlobalTool -g`)
@@ -24,14 +23,13 @@ Set up a complete Virtocommerce environment on your local machine with a single 
 ## 🏃‍♀️ Getting Started
 
 ### Initial Setup
-
 Run this command to create a local `VirtoLocal` directory with all required files:
 
 ```pwsh
 Invoke-Expression (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/dev/VirtoLocal_create_local_files.ps1" -UseBasicParsing).Content
 ```
 
-Created files and folders:
+The following files and folders will be created:
 - `docker-compose.yml`: Docker Compose configuration for VirtoCommerce solution
 - `backend` folder: Dockerfile and script(s) for the backend
 - `frontend` folder: Dockerfile and config file(s) for the frontend
@@ -41,8 +39,16 @@ Created files and folders:
 - `stop-VC-solution.ps1`: Script stops VC solution but does NOT remove the volumes associated with the docker containers
 - `remove-VC-solution.ps1`: Script removes docker volumes associated with the containers, removes backend and frontend docker images from local docker storage
 
-By default `build-VC-solution` script is executed automatically after the files are created and `start-VC-solution` script is executed automatically after build is complet. However the execution can be skipped.
+By default `build-VC-solution` script is executed automatically after the files are created and `start-VC-solution` script is executed automatically after the build is complete. However, the execution can be skipped.
 
+You have two options for installing Virto Commerce: using the latest stable release or the edge release. Learn more about our release strategy by [following this link](https://docs.virtocommerce.org/platform/developer-guide/Updating-Virto-Commerce-Based-Project/release-strategy-overview/).
+
+### Endpoints
+After running the script:
+* Virto Commerce Frontend will be running at http://localhost:80
+* Virto Commerce Backed will be running at http://localhost:8090
+
+### Manual Installation
 The manual installation steps are as follows:
 1. First run `build-VC-solution.ps1` with these version options:
 - `vcSolutionVersion` parameter:
@@ -59,8 +65,8 @@ The manual installation steps are as follows:
 Use `stop-VC-solution.ps1` to pause containers while preserving your data.
 
 ### Version Configuration
-
 Customize versions and ports in the `.env` file. Default settings:
+
 ```
 PGSQL_VERSION=16.9
 STACK_VERSION=8.18.0
@@ -81,7 +87,6 @@ FRONTEND_PORT=80
 
 
 ## 🗑️ Uninstallation
-
 To fully uninstall and erase all data:
 1. Run `remove-VC-solution.ps1`
 - Stops containers
@@ -93,3 +98,23 @@ To fully uninstall and erase all data:
 
 > [!WARNING]  
 > PostgresSQL, Redis, Elasticsearch, and Kibana base images remain installed.
+
+## References
+* [Home](https://virtocommerce.com)
+* [Community](https://www.virtocommerce.org)
+* [Documentation](https://docs.virtocommerce.org/)
+
+## License
+
+Copyright (c) Virto Solutions LTD.  All rights reserved.
+
+Licensed under the Virto Commerce Open Software License (the "License"); you
+may not use this file except in compliance with the License. You may
+obtain a copy of the License at
+
+http://virtocommerce.com/opensourcelicense
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+implied.
