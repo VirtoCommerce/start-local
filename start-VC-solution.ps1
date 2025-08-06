@@ -9,6 +9,22 @@ if (-not (Test-Path -Path $dockerComposePath)) {
     exit 1
 }
 
+Write-Host "Checking required ports..." -ForegroundColor Yellow
+$requiredPorts = Get-Content $solutionFolder/.env | Select-String -Pattern "_PORT=" | ForEach-Object { $_.Line.Split('=')[1] }
+$portInUse = netstat -an | Where-Object { $_ -match "LISTENING" }
+foreach ($port in $requiredPorts) {
+    Write-Host "Checking port '$port'..."
+    $portInUse = $portInUse | Where-Object { $_ -match ":$port\s" }
+    if ($portInUse) { 
+        Write-Error "Local TCP port $port is busy, please review ports configuration in '.env' file" -ForegroundColor Red
+        exit 1
+    }
+    else {
+        Write-Host "... port '$port' is free"
+    }
+}
+Write-Host "Ports check completed" -ForegroundColor Green
+
 Write-Host "Starting VC solution..." -ForegroundColor Yellow
 docker-compose -f $dockerComposePath up -d
 if ($LASTEXITCODE -ne 0) {
