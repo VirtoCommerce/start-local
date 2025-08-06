@@ -1,6 +1,33 @@
 param (
     [string]$solutionFolder = "VirtoLocal"
 )
+function Test-PortInUse {
+    param([int]$Port)
+    
+    if ($IsWindows) {
+        # Windows: use netstat
+        $listeningPorts = netstat -an | Where-Object { $_ -match "LISTENING" }
+        return $listeningPorts | Where-Object { $_ -match ":$Port\s" }
+    }
+    else {
+        # Linux/macOS: use ss command (modern replacement for netstat)
+        try {
+            $ssOutput = ss -tuln | Where-Object { $_ -match "LISTEN" }
+            return $ssOutput | Where-Object { $_ -match ":$Port\s" }
+        }
+        catch {
+            # Fallback: try lsof if ss is not available
+            try {
+                $lsofOutput = lsof -i :$Port 2>$null
+                return $lsofOutput | Where-Object { $_ -match "LISTEN" }
+            }
+            catch {
+                Write-Warning "Could not check port $Port - port checking tools not available"
+                return $null
+            }
+        }
+    }
+}
 
 $scriptsDir = Join-Path $solutionFolder "scripts"
 $dockerComposePath = "$solutionFolder/docker-compose.yml"
@@ -11,10 +38,10 @@ if (-not (Test-Path -Path $dockerComposePath)) {
 
 Write-Host "Checking required ports..." -ForegroundColor Yellow
 $requiredPorts = Get-Content $solutionFolder/.env | Select-String -Pattern "_PORT=" | ForEach-Object { $_.Line.Split('=')[1] }
-$portInUse = netstat -an | Where-Object { $_ -match "LISTENING" }
+
 foreach ($port in $requiredPorts) {
     Write-Host "Checking port '$port'..."
-    $portInUse = $portInUse | Where-Object { $_ -match ":$port\s" }
+    $portInUse = Test-PortInUse -Port $port
     if ($portInUse) { 
         Write-Error "Local TCP port $port is busy, please review ports configuration in '.env' file" -ForegroundColor Red
         exit 1
