@@ -45,8 +45,19 @@ You have two options for installing Virto Commerce: using the latest stable rele
 
 ### Endpoints
 After running the script:
-* Virto Commerce Frontend will be running at http://localhost:80
-* Virto Commerce Backed will be running at http://localhost:8090
+* **Virto Commerce Frontend** will be running at http://localhost:80
+* **Virto Commerce Backed** will be running at http://localhost:8090
+
+### Initial Configuration
+1. Open the **Virto Commerce Backend** and sign in using the default credentials:
+    * Username: **admin**
+    * Password: **store**
+1. You will be prompted to change the password upon first login.
+1. Review or install the sample data set to populate the system with example products and catalogs.
+1. Navigate to the Search Index section and ensure that all indexes are built successfully.
+1. Open the Virto Commerce Frontend to view and explore the sample data.
+
+Please take a look at [Virto Commerce Documentation](https://docs.virtocommerce.org/) for additional configuration and customisation guidance.
 
 ### Manual Installation
 The manual installation steps are as follows:
