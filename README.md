@@ -17,8 +17,8 @@ Set up a complete Virto Commerce environment on your local machine with a single
 - [.NET SDK](https://dotnet.microsoft.com/download) (Required for `vc-build` installation)
 - [vc-build tool](https://github.com/VirtoCommerce/vc-build) (Install with: `dotnet tool install VirtoCommerce.GlobalTool -g`)
 - [Docker](https://www.docker.com/) (On Linux/MacOS, configure Docker to run without sudo)
-- Compatible with Windows
-- For Linux/MacOS: Requires PowerShell ([Linux install](https://learn.microsoft.com/powershell/scripting/install/installing-powershell-on-linux), [macOS install](https://learn.microsoft.com/powershell/scripting/install/installing-powershell-on-macos))
+- Compatible with Windows (Requires PowerShell v.7)
+- For Linux/MacOS: Requires PowerShell v.7 ([Linux install](https://learn.microsoft.com/powershell/scripting/install/installing-powershell-on-linux), [macOS install](https://learn.microsoft.com/powershell/scripting/install/installing-powershell-on-macos))
 
 ## 🏃‍♀️ Getting Started
 
@@ -99,7 +99,7 @@ FRONTEND_PORT=80
 
 ## 🗑️ Uninstallation
 To fully uninstall and erase all data:
-1. Run `remove-VC-solution.ps1`
+1. Run `/VirtoLocal/remove-VC-solution.ps1`
 - Stops containers
 - Deletes persistent volumes
 - Removes vc-platform:local-latest and vc-frontend:local-latest images
