@@ -91,6 +91,11 @@ Write-Host "... docker-compose file downloaded" -ForegroundColor Green
 
 Write-Host "File operation completed." -ForegroundColor Green
 
+# Update vc-build
+Write-Host "Updating vc-build module..." -ForegroundColor Yellow
+dotnet tool update --global VirtoCommerce.GlobalTool
+Write-Host "... vc-build module updated" -ForegroundColor Green
+
 # Ask user to proceed with building the solution
 $proceed = Read-Host "Do you want to proceed with building the VirtoCommerce solution? (Y/n)"
 if ($proceed -eq "" -or $proceed -eq "y" -or $proceed -eq "Y") {
