@@ -96,7 +96,15 @@ $update = Read-Host "Do you want to update vc-build (Recommended)? (Y/n)"
 if ($update -eq "" -or $update -eq "y" -or $update -eq "Y") {
     Write-Host "Updating vc-build..." -ForegroundColor Yellow
     dotnet tool update --global VirtoCommerce.GlobalTool
-    Write-Host "... vc-build updated" -ForegroundColor Green
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Error: Failed to update vc-build" -ForegroundColor Red
+        Write-Host "dotnet tool update command failed with exit code: $LASTEXITCODE" -ForegroundColor Red
+        exit 1
+    } else {
+        Write-Host "... vc-build updated" -ForegroundColor Green
+    }
+} else {
+    Write-Host "vc-build update skipped." -ForegroundColor Yellow
 }
 
 # Ask user to proceed with building the solution

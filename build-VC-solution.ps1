@@ -2,8 +2,6 @@ param (
     [string]$targetFolder = "VirtoLocal",
     [ValidateSet("latest-stable", "edge")]
     [string]$vcSolutionVersion = "latest-stable"
-    # [string]$frontendRelease = "latest", # https://github.com/VirtoCommerce/vc-frontend/releases
-    # [string]$vcModulesBundle = "v10" # https://github.com/VirtoCommerce/vc-modules/tree/master/bundles
 )
 
 function New-Folder($folder) {
@@ -53,7 +51,7 @@ if ($vcSolutionVersion -eq "latest-stable") {
 else {
     # build latest dev
     Write-Host "Building backend..." -ForegroundColor Yellow
-    vc-build install  -Edge `
+    vc-build install -Edge `
         --probing-path $backendDir/publish/app_data/modules `
         --discovery-path $backendDir/publish/modules `
         --root $backendDir/publish `
