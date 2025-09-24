@@ -28,7 +28,6 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "... Backend Docker image removed" -ForegroundColor Green
 }
 
-
 Write-Host "Removing frontend Docker image..." -ForegroundColor Yellow
 docker rmi vc-frontend:local-latest
 if ($LASTEXITCODE -ne 0) {
