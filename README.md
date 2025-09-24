@@ -26,7 +26,7 @@ Set up a complete Virto Commerce environment on your local machine with a single
 Run this command to create a local `VirtoLocal` directory with all required files:
 
 ```pwsh
-Invoke-Expression (Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/dev/VirtoLocal_create_local_files.ps1" -UseBasicParsing).Content
+$installSCript = Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/dev/VirtoLocal_create_local_files.ps1" -UseBasicParsing; Set-Content -Path ".\VirtoLocal_create_local_files.ps1" -Value $installSCript.Content; .\VirtoLocal_create_local_files.ps1
 ```
 
 The following files and folders will be created:
