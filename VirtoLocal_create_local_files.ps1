@@ -16,7 +16,7 @@ function New-Folder($folder) {
 
 function New-RandomPassword {
     param([int]$Length = 12)
-    $chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@$%^&*"
+    $chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
     $password = ""
     for ($i = 0; $i -lt $Length; $i++) {
         $password += $chars[(Get-Random -Maximum $chars.Length)]
@@ -100,10 +100,12 @@ if ($update -eq "" -or $update -eq "y" -or $update -eq "Y") {
         Write-Host "Error: Failed to update vc-build" -ForegroundColor Red
         Write-Host "dotnet tool update command failed with exit code: $LASTEXITCODE" -ForegroundColor Red
         exit 1
-    } else {
+    }
+    else {
         Write-Host "... vc-build updated" -ForegroundColor Green
     }
-} else {
+}
+else {
     Write-Host "vc-build update skipped." -ForegroundColor Yellow
 }
 
