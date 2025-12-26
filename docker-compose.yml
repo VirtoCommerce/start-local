@@ -93,15 +93,25 @@ services:
       - es
     command: |
       bash -c '
+        password_set=false
         for i in {1..6}; do
           echo "Waiting for Elasticsearch... attempt $$i/6"
           if curl -s -u "elastic:$ELASTIC_PASSWORD" http://es:9200 >/dev/null 2>&1; then
             echo "Elasticsearch ready!"
-            curl -sS -X POST "http://es:9200/_security/user/kibana_system/_password" -H "Content-Type: application/json" -u "elastic:$ELASTIC_PASSWORD" -d "{\"password\":\"$KIBANA_PASSWORD\"}" && echo "Password set successfully" || echo "Failed to set password"
-            break
+            if curl -sS -X POST "http://es:9200/_security/user/kibana_system/_password" -H "Content-Type: application/json" -u "elastic:$ELASTIC_PASSWORD" -d "{\"password\":\"$KIBANA_PASSWORD\"}" >/dev/null 2>&1; then
+              echo "Password set successfully"
+              password_set=true
+              break
+            else
+              echo "Failed to set password, will retry..."
+            fi
           fi
           sleep 30
         done
+        if [ "$password_set" != "true" ]; then
+          echo "ERROR: Failed to set kibana_system password after all retries. Exiting."
+          exit 1
+        fi
         exec /usr/local/bin/kibana-docker
         '
     healthcheck:
