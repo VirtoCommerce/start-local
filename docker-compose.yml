@@ -68,7 +68,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "curl -s --fail -u elastic:$ELASTIC_PASSWORD http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s > /dev/null",
+          "curl -s --fail -u elastic:$ELASTIC_PASSWORD 'http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s' > /dev/null",
         ]
       interval: 10s
       timeout: 10s
@@ -91,7 +91,7 @@ services:
       - XPACK_SECURITY_ENCRYPTIONKEY=${ENCRYPTION_KEY:-}
     depends_on:
       - es
-    command: >
+    command: |
       bash -c '
         for i in {1..6}; do
           echo "Waiting for Elasticsearch... attempt $$i/6"
