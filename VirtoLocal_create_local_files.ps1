@@ -41,11 +41,12 @@ DB_PASSWORD=$(New-RandomPassword)
 REDIS_PASSWORD=$(New-RandomPassword)
 ELASTIC_PASSWORD=$(New-RandomPassword)
 KIBANA_PASSWORD=$(New-RandomPassword)
+ENCRYPTION_KEY=$(New-RandomPassword -length 32)
 PGSQL_PORT=5432
 REDIS_PORT=6379
 FRONTEND_PORT=80
 ES_CLUSTER_NAME=elasticsearch
-ES_LICENSE=basic
+ES_LICENSE=trial
 ES_MEM_LIMIT=1g
 "@
 Set-Content -Path $envFile -Value $envFileContent

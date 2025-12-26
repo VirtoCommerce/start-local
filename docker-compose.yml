@@ -22,7 +22,7 @@ services:
     environment: 
       - POSTGRES_DB=VirtoCommerce3
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=${DB_PASSWORD:-v!rto_Labs!}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-v1rto_Labs1}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -30,7 +30,7 @@ services:
 
   redis:
     image: redis:alpine
-    command: redis-server --requirepass ${REDIS_PASSWORD:-v!rto_Labs!}
+    command: redis-server --requirepass ${REDIS_PASSWORD:-v1rto_Labs1}
     ports:
       - "${REDIS_PORT:-6379}:6379"
     environment:
@@ -51,14 +51,13 @@ services:
     environment:
       - node.name=es
       - cluster.name=${ES_CLUSTER_NAME:-elasticsearch}
-      - cluster.initial_master_nodes=es
-      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-v!rto_Labs!}
+      - KIBANA_PASSWORD=${KIBANA_PASSWORD:-v1rto_Labs1}
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-v1rto_Labs1}
       - bootstrap.memory_lock=true
-      - xpack.security.enabled=false
-      - xpack.security.http.ssl.enabled=false
-      - xpack.security.transport.ssl.enabled=false
+      - xpack.security.enabled=true
       - xpack.license.self_generated.type=${ES_LICENSE:-basic}
-      - xpack.ml.use_auto_machine_memory_percent=true
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
     restart: "on-failure"
     mem_limit: ${ES_MEM_LIMIT:-1g}
     ulimits:
@@ -69,7 +68,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "curl -s http://localhost:9200",
+          "curl -s --fail -u elastic:$ELASTIC_PASSWORD http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s > /dev/null",
         ]
       interval: 10s
       timeout: 10s
@@ -84,10 +83,26 @@ services:
     environment:
       - ELASTICSEARCH_HOSTS=http://es:9200
       - ELASTICSEARCH_USERNAME=kibana_system
-      - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD:-Kibana-v!rto_Labs!}
-      - XPACK_SECURITY_ENABLED=false
+      - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD:-v1rto_Labs1}
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-v1rto_Labs1}
+      - XPACK_REPORTING_ENCRYPTIONKEY=${ENCRYPTION_KEY:-}
+      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${ENCRYPTION_KEY:-}
+      - XPACK_SECURITY_ENCRYPTIONKEY=${ENCRYPTION_KEY:-}
     depends_on:
       - es
+    command: >
+      bash -c '
+        for i in {1..6}; do
+          echo "Waiting for Elasticsearch... attempt $$i/6"
+          if curl -s -u "elastic:$ELASTIC_PASSWORD" http://es:9200 >/dev/null 2>&1; then
+            echo "Elasticsearch ready!"
+            curl -sS -X POST "http://es:9200/_security/user/kibana_system/_password" -H "Content-Type: application/json" -u "elastic:$ELASTIC_PASSWORD" -d "{\"password\":\"$KIBANA_PASSWORD\"}" && echo "Password set successfully" || echo "Failed to set password"
+            break
+          fi
+          sleep 30
+        done
+        exec /usr/local/bin/kibana-docker
+        '
     healthcheck:
       test:
         [
@@ -116,13 +131,13 @@ services:
       - VirtoCommerce:AllowInsecureHttp=true
       - VirtoCommerce:Hangfire:JobStorageType=Memory
       - DatabaseProvider=PostgreSql
-      - ConnectionStrings:VirtoCommerce=User ID=postgres;Password=${DB_PASSWORD:-v!rto_Labs!};Host=vc-db;Port=5432;Database=VirtoCommerce3
+      - ConnectionStrings:VirtoCommerce=User ID=postgres;Password=${DB_PASSWORD:-v1rto_Labs1};Host=vc-db;Port=5432;Database=VirtoCommerce3
       - Assets:FileSystem:PublicUrl=http://localhost:${PLATFORM_PORT:-8090}/assets/
       - Content:FileSystem:PublicUrl=http://localhost:${PLATFORM_PORT:-8090}/cms-content/
       - Search:Provider=ElasticSearch8
       - Search:ElasticSearch8:Server=http://es:9200
       - Search:ElasticSearch8:User=elastic
-      - Search:ElasticSearch8:Key=${ELASTIC_PASSWORD:-v!rto_Labs!}
+      - Search:ElasticSearch8:Key=${ELASTIC_PASSWORD:-v1rto_Labs1}
       - Search:ElasticSearch8:EnableCompatibilityMode=true
     depends_on:
       - vc-db
