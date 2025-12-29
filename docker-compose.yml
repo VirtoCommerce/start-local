@@ -108,7 +108,7 @@ services:
           fi
           sleep 30
         done
-        if [ "$password_set" != "true" ]; then
+        if [ "$$password_set" != "true" ]; then
           echo "ERROR: Failed to set kibana_system password after all retries. Exiting."
           exit 1
         fi
