@@ -96,9 +96,9 @@ services:
         password_set=false
         for i in {1..6}; do
           echo "Waiting for Elasticsearch... attempt $$i/6"
-          if curl -s -u "elastic:$$ELASTIC_PASSWORD" http://es:9200 >/dev/null 2>&1; then
+          if curl -s --fail -u "elastic:$$ELASTIC_PASSWORD" http://es:9200 >/dev/null 2>&1; then
             echo "Elasticsearch ready!"
-            if curl -sS -X POST "http://es:9200/_security/user/kibana_system/_password" -H "Content-Type: application/json" -u "elastic:$$ELASTIC_PASSWORD" -d "{\"password\":\"$$KIBANA_PASSWORD\"}" >/dev/null 2>&1; then
+            if curl -sS --fail -X POST "http://es:9200/_security/user/kibana_system/_password" -H "Content-Type: application/json" -u "elastic:$$ELASTIC_PASSWORD" -d "{\"password\":\"$$KIBANA_PASSWORD\"}" >/dev/null 2>&1; then
               echo "Password set successfully"
               password_set=true
               break
