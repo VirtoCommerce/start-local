@@ -73,8 +73,8 @@ Write-Host "... Scripts-helpers downloaded" -ForegroundColor Green
 # download config files for the backend
 Write-Host "Downloading config files for the backend..." -ForegroundColor Yellow
 New-Folder $backendDir
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/vc-docker/feat/net8/linux/platform/Dockerfile" -OutFile (Join-Path $backendDir "Dockerfile")
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/vc-docker/feat/net8/linux/platform/wait-for-it.sh" -OutFile (Join-Path $backendDir "wait-for-it.sh")
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/vc-docker/feat/net10/linux/platform/Dockerfile" -OutFile (Join-Path $backendDir "Dockerfile")
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/vc-docker/feat/net10/linux/platform/wait-for-it.sh" -OutFile (Join-Path $backendDir "wait-for-it.sh")
 Write-Host "... Config files for the backend downloaded" -ForegroundColor Green
 
 #download config files for the frontend
