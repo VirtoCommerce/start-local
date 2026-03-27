@@ -16,7 +16,7 @@
 services:
 
   vc-db:
-    image: postgres:${PGSQL_VERSION:-16.9}
+    image: postgres:${PGSQL_VERSION:-18.3}
     ports:
       - "${PGSQL_PORT:-5432}:5432"
     environment: 
