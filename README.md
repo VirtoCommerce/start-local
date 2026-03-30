@@ -79,7 +79,7 @@ Use `stop-VC-solution.ps1` to pause containers while preserving your data.
 Customize versions and ports in the `.env` file. Default settings:
 
 ```
-PGSQL_VERSION=16.9
+PGSQL_VERSION=18.3
 STACK_VERSION=8.18.0
 PLATFORM_PORT=8090
 ES_PORT=9200

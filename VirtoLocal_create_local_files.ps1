@@ -1,6 +1,6 @@
 param (
     [string]$targetFolder = "VirtoLocal",
-    [string]$postgresVersion = "16.9",
+    [string]$postgresVersion = "18.3",
     [string]$elasticsearchVersion = "8.18.0"
 )
 function New-Folder($folder) {
