@@ -8,9 +8,12 @@ Set up a complete Virto Commerce environment on your local machine with a single
 - Elasticsearch
 - Kibana
 
-> [!IMPORTANT]  
+> [!IMPORTANT]
 > This setup is for local development and testing only. Not for production use!
-> !TODO! For production deployments, consult the official documentation for [Elasticsearch](https://www.elastic.co/downloads/elasticsearch) and [Kibana](https://www.elastic.co/downloads/kibana).
+>
+> Elasticsearch and Kibana run with security features disabled (`xpack.security.enabled=false`, both HTTP and transport TLS off) to match the default `basic` self-generated license used in this local setup. There is no authentication on the search cluster — anyone with network access to the published ports can read or modify the indexes. **Do not expose these ports beyond your local machine.**
+>
+> For production deployments, enable security and consult the official documentation for [Elasticsearch](https://www.elastic.co/guide/en/elasticsearch/reference/current/secure-cluster.html) and [Kibana](https://www.elastic.co/guide/en/kibana/current/using-kibana-with-security.html).
 
 ## 💻 System Requirements
 - ~5 GB available disk space
