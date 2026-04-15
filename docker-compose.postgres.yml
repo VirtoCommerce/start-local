@@ -25,6 +25,7 @@ services:
 
 volumes:
   postgres_data:
+    name: virto_postgres_data
     driver: local
 
 networks:

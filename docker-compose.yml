@@ -121,12 +121,14 @@ services:
 
 volumes:
   cms-content-volume:
-    name: cms-content-data
+    name: virto_cms-content-data
   modules-volume:
-    name: modules-data
+    name: virto_modules-data
   esdata01:
+    name: virto_esdata01
     driver: local
   redisdata:
+    name: virto_redisdata
     driver: local
 
 networks:

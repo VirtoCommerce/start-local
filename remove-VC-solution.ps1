@@ -10,25 +10,52 @@ if (-not (Test-Path -Path $dockerComposePath)) {
 
 . "$solutionFolder/scripts/docker-compose-helper.ps1"
 
-# Iterate over all known providers so volumes from inactive providers are also removed.
-# Side-by-side data volumes (postgres_data, mysql_data, mssql_data) are only declared
-# in their respective override files, so each must be brought down with -v.
+# Merge ALL provider override files into a single 'down -v' call.
+# The merged top-level volumes section will declare all DB volumes
+# (postgres_data, mysql_data, mssql_data), so 'down -v' removes them
+# all in one call regardless of which provider is currently active in .env.
 $validProviders = @("postgres", "mysql", "sqlserver")
-
-Write-Host "Stopping and removing VC solution from docker (all providers)..." -ForegroundColor Yellow
+$composeArgs = @("-f", $dockerComposePath)
 foreach ($provider in $validProviders) {
     $providerOverridePath = "$solutionFolder/docker-compose.$provider.yml"
     if (-not (Test-Path -Path $providerOverridePath)) {
         Write-Host "  - Override file not found, skipping: $providerOverridePath" -ForegroundColor DarkYellow
         continue
     }
-    Write-Host "  - Removing for provider: $provider" -ForegroundColor Cyan
-    Invoke-DockerCompose -f $dockerComposePath -f $providerOverridePath down -v
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "    Warning: docker compose down -v for '$provider' returned exit code $LASTEXITCODE" -ForegroundColor Yellow
+    $composeArgs += "-f"
+    $composeArgs += $providerOverridePath
+}
+$composeArgs += @("down", "-v", "--remove-orphans")
+
+Write-Host "Stopping and removing VC solution from docker (all providers, all volumes)..." -ForegroundColor Yellow
+Invoke-DockerCompose @composeArgs
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Warning: docker compose down returned exit code $LASTEXITCODE" -ForegroundColor Yellow
+}
+
+# Safety net: explicitly remove any project volume that might still exist.
+# All compose volumes are explicitly named with a 'virto_' prefix in the compose files,
+# so we can target them by exact name without relying on the compose project name.
+$projectVolumes = @(
+    "virto_postgres_data",
+    "virto_mysql_data",
+    "virto_mssql_data",
+    "virto_cms-content-data",
+    "virto_modules-data",
+    "virto_esdata01",
+    "virto_redisdata"
+)
+foreach ($fullVolName in $projectVolumes) {
+    docker volume inspect $fullVolName *> $null
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "  - Removing leftover volume: $fullVolName" -ForegroundColor Cyan
+        docker volume rm $fullVolName *> $null
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "    Warning: failed to remove volume $fullVolName" -ForegroundColor Yellow
+        }
     }
 }
-Write-Host "... VC solution stopped and all DB volumes removed" -ForegroundColor Green
+Write-Host "... VC solution stopped and all project volumes removed" -ForegroundColor Green
 
 Write-Host "Removing backend Docker image..." -ForegroundColor Yellow
 docker rmi vc-platform:local-latest

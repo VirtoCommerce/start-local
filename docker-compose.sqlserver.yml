@@ -24,6 +24,7 @@ services:
 
 volumes:
   mssql_data:
+    name: virto_mssql_data
     driver: local
 
 networks:

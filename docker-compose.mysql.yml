@@ -24,6 +24,7 @@ services:
 
 volumes:
   mysql_data:
+    name: virto_mysql_data
     driver: local
 
 networks:
