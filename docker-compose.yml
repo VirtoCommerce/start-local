@@ -15,19 +15,6 @@
 
 services:
 
-  vc-db:
-    image: postgres:${PGSQL_VERSION:-18.3}
-    ports:
-      - "${PGSQL_PORT:-5432}:5432"
-    environment: 
-      - POSTGRES_DB=VirtoCommerce3
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=${DB_PASSWORD:-v!rto_Labs!}
-    volumes:
-      - postgres_data:/var/lib/postgresql
-    networks:
-      - virto
-
   redis:
     image: redis:alpine
     command: redis-server --requirepass ${REDIS_PASSWORD:-v!rto_Labs!}
@@ -97,7 +84,7 @@ services:
       interval: 10s
       timeout: 10s
       retries: 120
-  
+
   vc-frontend:
     depends_on:
       - vc-platform-web
@@ -115,8 +102,6 @@ services:
       - ASPNETCORE_URLS=http://+
       - VirtoCommerce:AllowInsecureHttp=true
       - VirtoCommerce:Hangfire:JobStorageType=Memory
-      - DatabaseProvider=PostgreSql
-      - ConnectionStrings:VirtoCommerce=User ID=postgres;Password=${DB_PASSWORD:-v!rto_Labs!};Host=vc-db;Port=5432;Database=VirtoCommerce3
       - Assets:FileSystem:PublicUrl=http://localhost:${PLATFORM_PORT:-8090}/assets/
       - Content:FileSystem:PublicUrl=http://localhost:${PLATFORM_PORT:-8090}/cms-content/
       - Search:Provider=ElasticSearch8
@@ -125,10 +110,8 @@ services:
       - Search:ElasticSearch8:Key=${ELASTIC_PASSWORD:-v!rto_Labs!}
       - Search:ElasticSearch8:EnableCompatibilityMode=true
     depends_on:
-      - vc-db
       - es
       - redis
-    entrypoint: ["/wait-for-it.sh", "vc-db:5432", "-t", "120", "--", "/wait-for-it.sh", "es:9200", "-t", "120", "--", "/wait-for-it.sh", "redis:6379", "-t", "120", "--", "dotnet", "VirtoCommerce.Platform.Web.dll"]
     volumes:
       - cms-content-volume:/opt/virtocommerce/platform/wwwroot/cms-content
       - modules-volume:/opt/virtocommerce/platform/modules
@@ -141,8 +124,6 @@ volumes:
     name: cms-content-data
   modules-volume:
     name: modules-data
-  postgres_data:
-    driver: local
   esdata01:
     driver: local
   redisdata:

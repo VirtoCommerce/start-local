@@ -13,7 +13,7 @@ vc-build install --package-manifest-path $packagesJsonPath `
 # build backend Docker image
 docker build --no-cache -t "vc-platform:local-latest" -f .\backend\Dockerfile .
 
-#remove publish folder
+# remove publish folder
 if (Test-Path -Path ./backend/publish) {
     Remove-Item -Recurse -Force ./backend/publish
 }
@@ -24,7 +24,7 @@ if ($installFrontend) {
         $releaseInfo = Invoke-RestMethod -Uri "https://api.github.com/repos/VirtoCommerce/vc-frontend/releases/latest"
     }
     else {
-        $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/VirtoCommerce/vc-frontend/releases" #/tag/$frontendRelease"
+        $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/VirtoCommerce/vc-frontend/releases"
         $releaseInfo = $releases | Where-Object { $_.tag_name -eq $frontendRelease }
     }
     $assets = $releaseInfo.assets
@@ -44,14 +44,10 @@ if ($installFrontend) {
     }
     Write-Host "... Frontend Docker image built successfully" -ForegroundColor Green
     Remove-Item -Recurse -Force ./frontend/artifact
-
-    # set docker compose file
-    if ($usePostgres) {
-        $dockerComposeFile = ".\docker-compose_PGSQL_full.yml"
-    }
-    else {
-        $dockerComposeFile = ".\docker-compose_MSSQL_full.yml"
-    }
 }
 
-docker-compose -f $solutionFolder/docker-compose.yml up -d
+# Read DB_PROVIDER from .env and start with correct override
+$envFile = Join-Path $solutionFolder ".env"
+$dbProvider = (Get-Content $envFile | Select-String -Pattern "^DB_PROVIDER=").Line.Split('=')[1].Trim()
+
+docker-compose -f $solutionFolder/docker-compose.yml -f $solutionFolder/docker-compose.$dbProvider.yml up -d

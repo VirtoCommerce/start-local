@@ -3,7 +3,7 @@ param (
 )
 function Test-PortInUse {
     param([int]$Port)
-    
+
     if ($IsWindows) {
         # Windows: use netstat
         $listeningPorts = netstat -an | Where-Object { $_ -match "LISTENING" }
@@ -36,13 +36,50 @@ if (-not (Test-Path -Path $dockerComposePath)) {
     exit 1
 }
 
+# Read DB_PROVIDER from .env
+$envFile = Join-Path $solutionFolder ".env"
+$dbProvider = (Get-Content $envFile | Select-String -Pattern "^DB_PROVIDER=").Line.Split('=')[1].Trim()
+$validProviders = @("postgres", "mysql", "sqlserver")
+if ($dbProvider -notin $validProviders) {
+    Write-Host "Error: Invalid DB_PROVIDER '$dbProvider' in .env file. Must be one of: $($validProviders -join ', ')" -ForegroundColor Red
+    exit 1
+}
+
+$dbOverridePath = "$solutionFolder/docker-compose.$dbProvider.yml"
+if (-not (Test-Path -Path $dbOverridePath)) {
+    Write-Host "Error: Docker compose override file not found: $dbOverridePath" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "Using database provider: $dbProvider" -ForegroundColor Cyan
+
+# Determine which DB port to check based on provider
+$dbPortVarMap = @{
+    "postgres"  = "PGSQL_PORT"
+    "mysql"     = "MYSQL_PORT"
+    "sqlserver" = "MSSQL_PORT"
+}
+$dbPortVar = $dbPortVarMap[$dbProvider]
+
 Write-Host "Checking required ports..." -ForegroundColor Yellow
-$requiredPorts = Get-Content $solutionFolder/.env | Select-String -Pattern "_PORT=" | ForEach-Object { $_.Line.Split('=')[1] }
+$envContent = Get-Content $envFile
+
+# Collect shared ports (non-DB) + the active DB port
+$sharedPortVars = @("PLATFORM_PORT", "ES_PORT", "KIBANA_PORT", "REDIS_PORT", "FRONTEND_PORT")
+$allPortVars = $sharedPortVars + @($dbPortVar)
+
+$requiredPorts = @()
+foreach ($varName in $allPortVars) {
+    $line = $envContent | Select-String -Pattern "^$varName=" | Select-Object -First 1
+    if ($line) {
+        $requiredPorts += $line.Line.Split('=')[1].Trim()
+    }
+}
 
 foreach ($port in $requiredPorts) {
     Write-Host "Checking port '$port'..."
     $portInUse = Test-PortInUse -Port $port
-    if ($portInUse) { 
+    if ($portInUse) {
         Write-Host "Local TCP port $port is busy, please review ports configuration in '.env' file" -ForegroundColor Red
         exit 1
     }
@@ -53,7 +90,7 @@ foreach ($port in $requiredPorts) {
 Write-Host "Ports check completed" -ForegroundColor Green
 
 Write-Host "Starting VC solution..." -ForegroundColor Yellow
-docker-compose -f $dockerComposePath up -d
+docker-compose -f $dockerComposePath -f $dbOverridePath up -d
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Error: Failed to start VC solution" -ForegroundColor Red
     Write-Host "docker-compose command failed with exit code: $LASTEXITCODE" -ForegroundColor Red

@@ -3,7 +3,7 @@
 Set up a complete Virto Commerce environment on your local machine with a single PowerShell script. The solution includes:
 - Virto Commerce Backend
 - Virto Commerce Frontend
-- PostgreSQL database
+- Database (PostgreSQL, MySQL, or SQL Server)
 - Redis
 - Elasticsearch
 - Kibana
@@ -28,6 +28,29 @@ Run this command to create a local `VirtoLocal` directory with all required file
 ```pwsh
 $installSCript = Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/dev/VirtoLocal_create_local_files.ps1" -UseBasicParsing; Set-Content -Path ".\VirtoLocal_create_local_files.ps1" -Value $installSCript.Content; .\VirtoLocal_create_local_files.ps1
 ```
+
+### Database Provider Selection
+
+During initial setup, you'll be prompted to choose a database provider:
+
+| Provider   | Default Version | Default Port |
+|------------|-----------------|--------------|
+| PostgreSQL | 18.3            | 5432         |
+| MySQL      | 9.3             | 3306         |
+| SQL Server | 2022-latest     | 1433         |
+
+You can also pass the provider via parameter: `.\VirtoLocal_create_local_files.ps1 -dbProvider mysql`
+
+#### Switching Database Providers
+
+To switch providers after initial setup:
+1. Edit `.env` and change `DB_PROVIDER` to `postgres`, `mysql`, or `sqlserver`
+2. Run `stop-VC-solution.ps1` (if currently running)
+3. Run `start-VC-solution.ps1`
+
+Each provider stores its data in a separate Docker volume. Switching providers does **not** remove the previous provider's data. When you switch back, your data is still there. Only `remove-VC-solution.ps1` removes all volumes.
+
+### Created Files and Folders
 
 The following files and folders will be created:
 - `docker-compose.yml`: Docker Compose configuration for VirtoCommerce solution
@@ -68,7 +91,7 @@ The manual installation steps are as follows:
 
 2. Then run `start-VC-solution.ps1` to launch:
 - Virtocommerce backend/frontend
-- PostgreSQL
+- Database (PostgreSQL, MySQL, or SQL Server — configured in .env)
 - Redis
 - Elasticsearch
 - Kibana
@@ -79,18 +102,34 @@ Use `stop-VC-solution.ps1` to pause containers while preserving your data.
 Customize versions and ports in the `.env` file. Default settings:
 
 ```
+DB_PROVIDER=postgres
+
+# PostgreSQL
 PGSQL_VERSION=18.3
+PGSQL_PORT=5432
+
+# MySQL
+MYSQL_VERSION=9.3
+MYSQL_PORT=3306
+
+# SQL Server
+MSSQL_VERSION=2022-latest
+MSSQL_PORT=1433
+
+# Shared
+DB_PASSWORD=$(New-RandomPassword)
 STACK_VERSION=8.18.0
 PLATFORM_PORT=8090
 ES_PORT=9200
 KIBANA_PORT=5601
-DB_PASSWORD=$(New-RandomPassword)
 REDIS_PASSWORD=$(New-RandomPassword)
 ELASTIC_PASSWORD=$(New-RandomPassword)
 KIBANA_PASSWORD=$(New-RandomPassword)
-PGSQL_PORT=5432
 REDIS_PORT=6379
 FRONTEND_PORT=80
+ES_CLUSTER_NAME=elasticsearch
+ES_LICENSE=basic
+ES_MEM_LIMIT=1g
 ```
 
 > [!IMPORTANT]
@@ -108,7 +147,7 @@ To fully uninstall and erase all data:
 > This permanently destroys all data.
 
 > [!WARNING]  
-> PostgresSQL, Redis, Elasticsearch, and Kibana base images remain installed.
+> Database (PostgreSQL, MySQL, or SQL Server), Redis, Elasticsearch, and Kibana base images remain installed.
 
 ## References
 * [Home](https://virtocommerce.com)

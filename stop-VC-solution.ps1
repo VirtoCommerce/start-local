@@ -8,8 +8,23 @@ if (-not (Test-Path -Path $dockerComposePath)) {
     exit 1
 }
 
-Write-Host "Stopping VC solution..." -ForegroundColor Yellow
-docker-compose -f $dockerComposePath down
+# Read DB_PROVIDER from .env
+$envFile = Join-Path $solutionFolder ".env"
+$dbProvider = (Get-Content $envFile | Select-String -Pattern "^DB_PROVIDER=").Line.Split('=')[1].Trim()
+$validProviders = @("postgres", "mysql", "sqlserver")
+if ($dbProvider -notin $validProviders) {
+    Write-Host "Error: Invalid DB_PROVIDER '$dbProvider' in .env file. Must be one of: $($validProviders -join ', ')" -ForegroundColor Red
+    exit 1
+}
+
+$dbOverridePath = "$solutionFolder/docker-compose.$dbProvider.yml"
+if (-not (Test-Path -Path $dbOverridePath)) {
+    Write-Host "Error: Docker compose override file not found: $dbOverridePath" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "Stopping VC solution (provider: $dbProvider)..." -ForegroundColor Yellow
+docker-compose -f $dockerComposePath -f $dbOverridePath down
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Error: Failed to stop VC solution" -ForegroundColor Red
     Write-Host "docker-compose command failed with exit code: $LASTEXITCODE" -ForegroundColor Red
