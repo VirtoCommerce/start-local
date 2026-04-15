@@ -37,6 +37,8 @@ if (-not (Test-Path -Path $dockerComposePath)) {
     exit 1
 }
 
+. "$scriptsDir/docker-compose-helper.ps1"
+
 # Read DB_PROVIDER from .env
 $envFile = Join-Path $solutionFolder ".env"
 $dbProvider = (Get-Content $envFile | Select-String -Pattern "^DB_PROVIDER=").Line.Split('=')[1].Trim()
@@ -91,10 +93,10 @@ foreach ($port in $requiredPorts) {
 Write-Host "Ports check completed" -ForegroundColor Green
 
 Write-Host "Starting VC solution..." -ForegroundColor Yellow
-docker-compose -f $dockerComposePath -f $dbOverridePath up -d
+Invoke-DockerCompose -f $dockerComposePath -f $dbOverridePath up -d
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Error: Failed to start VC solution" -ForegroundColor Red
-    Write-Host "docker-compose command failed with exit code: $LASTEXITCODE" -ForegroundColor Red
+    Write-Host "docker compose command failed with exit code: $LASTEXITCODE" -ForegroundColor Red
     exit 1
 }
 Write-Host "... VC solution started" -ForegroundColor Green

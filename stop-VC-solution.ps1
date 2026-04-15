@@ -8,6 +8,8 @@ if (-not (Test-Path -Path $dockerComposePath)) {
     exit 1
 }
 
+. "$solutionFolder/scripts/docker-compose-helper.ps1"
+
 # Read DB_PROVIDER from .env
 $envFile = Join-Path $solutionFolder ".env"
 $dbProvider = (Get-Content $envFile | Select-String -Pattern "^DB_PROVIDER=").Line.Split('=')[1].Trim()
@@ -24,10 +26,10 @@ if (-not (Test-Path -Path $dbOverridePath)) {
 }
 
 Write-Host "Stopping VC solution (provider: $dbProvider)..." -ForegroundColor Yellow
-docker-compose -f $dockerComposePath -f $dbOverridePath down
+Invoke-DockerCompose -f $dockerComposePath -f $dbOverridePath down
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Error: Failed to stop VC solution" -ForegroundColor Red
-    Write-Host "docker-compose command failed with exit code: $LASTEXITCODE" -ForegroundColor Red
+    Write-Host "docker compose command failed with exit code: $LASTEXITCODE" -ForegroundColor Red
     exit 1
 }
 Write-Host "... VC solution stopped" -ForegroundColor Green

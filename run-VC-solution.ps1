@@ -46,8 +46,10 @@ if ($installFrontend) {
     Remove-Item -Recurse -Force ./frontend/artifact
 }
 
+. "$solutionFolder/scripts/docker-compose-helper.ps1"
+
 # Read DB_PROVIDER from .env and start with correct override
 $envFile = Join-Path $solutionFolder ".env"
 $dbProvider = (Get-Content $envFile | Select-String -Pattern "^DB_PROVIDER=").Line.Split('=')[1].Trim()
 
-docker-compose -f $solutionFolder/docker-compose.yml -f $solutionFolder/docker-compose.$dbProvider.yml up -d
+Invoke-DockerCompose -f $solutionFolder/docker-compose.yml -f $solutionFolder/docker-compose.$dbProvider.yml up -d

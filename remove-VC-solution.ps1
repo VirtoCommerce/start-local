@@ -8,6 +8,8 @@ if (-not (Test-Path -Path $dockerComposePath)) {
     exit 1
 }
 
+. "$solutionFolder/scripts/docker-compose-helper.ps1"
+
 # Iterate over all known providers so volumes from inactive providers are also removed.
 # Side-by-side data volumes (postgres_data, mysql_data, mssql_data) are only declared
 # in their respective override files, so each must be brought down with -v.
@@ -21,9 +23,9 @@ foreach ($provider in $validProviders) {
         continue
     }
     Write-Host "  - Removing for provider: $provider" -ForegroundColor Cyan
-    docker-compose -f $dockerComposePath -f $providerOverridePath down -v
+    Invoke-DockerCompose -f $dockerComposePath -f $providerOverridePath down -v
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "    Warning: docker-compose down -v for '$provider' returned exit code $LASTEXITCODE" -ForegroundColor Yellow
+        Write-Host "    Warning: docker compose down -v for '$provider' returned exit code $LASTEXITCODE" -ForegroundColor Yellow
     }
 }
 Write-Host "... VC solution stopped and all DB volumes removed" -ForegroundColor Green
