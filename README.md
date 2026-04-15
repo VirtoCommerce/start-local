@@ -50,6 +50,14 @@ To switch providers after initial setup:
 
 Each provider stores its data in a separate Docker volume. Switching providers does **not** remove the previous provider's data. When you switch back, your data is still there. Only `remove-VC-solution.ps1` removes all volumes.
 
+### Sample Data Installation
+
+After the build completes and the solution starts, you'll be prompted to install sample data (catalogs, products, etc.). Installation is enabled by default — press Enter or `Y` to install, or `N` to skip.
+
+You can also control sample data installation via parameter when running scripts directly:
+- `.\start-VC-solution.ps1 -skipSampleData $true` — start the solution without installing sample data
+- `.\build-VC-solution.ps1 -skipSampleData $true` — pass through to the start step
+
 ### Created Files and Folders
 
 The following files and folders will be created:
@@ -84,10 +92,11 @@ Please take a look at [Virto Commerce Documentation](https://docs.virtocommerce.
 
 ### Manual Installation
 The manual installation steps are as follows:
-1. First run `build-VC-solution.ps1` with these version options:
-- `vcSolutionVersion` parameter:
+1. First run `build-VC-solution.ps1` with these parameters:
+- `vcSolutionVersion`:
     - `latest-stable`: Installs the latest stable backend bundle with compatible frontend
-    - `edge: Installs` the newest backend and frontend releases
+    - `edge`: Installs the newest backend and frontend releases
+- `skipSampleData` (optional, default `$false`): pass `$true` to skip sample data installation when the start step is invoked automatically
 
 2. Then run `start-VC-solution.ps1` to launch:
 - Virtocommerce backend/frontend
@@ -95,6 +104,8 @@ The manual installation steps are as follows:
 - Redis
 - Elasticsearch
 - Kibana
+
+`start-VC-solution.ps1` accepts a `skipSampleData` parameter (default `$false`) — pass `$true` to skip the sample data setup step.
 
 Use `stop-VC-solution.ps1` to pause containers while preserving your data.
 
@@ -148,6 +159,16 @@ To fully uninstall and erase all data:
 
 > [!WARNING]  
 > Database (PostgreSQL, MySQL, or SQL Server), Redis, Elasticsearch, and Kibana base images remain installed.
+
+## 🧪 Advanced / Testing
+
+`VirtoLocal_create_local_files.ps1` supports a `-branch` parameter (default `dev`) that controls which branch of the [start-local](https://github.com/VirtoCommerce/start-local) repository is used to fetch the management scripts and docker-compose files. Use this when testing changes from a feature branch:
+
+```pwsh
+.\VirtoLocal_create_local_files.ps1 -branch feature/my-test-branch
+```
+
+This parameter has no interactive prompt and is intended for development/testing of the `start-local` scripts themselves.
 
 ## References
 * [Home](https://virtocommerce.com)

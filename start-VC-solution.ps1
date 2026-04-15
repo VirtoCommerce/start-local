@@ -1,5 +1,6 @@
 param (
-    [string]$solutionFolder = "VirtoLocal"
+    [string]$solutionFolder = "VirtoLocal",
+    [bool]$skipSampleData = $false
 )
 function Test-PortInUse {
     param([int]$Port)
@@ -103,6 +104,11 @@ $solutionFolderLower = $solutionFolder.ToLower()
 Invoke-Expression "./$scriptsDir/check-installed-modules.ps1 -ApiUrl http://localhost:8090 -ContainerId '$solutionFolderLower-vc-platform-web-1' -watchUrlScriptPath $scriptsDir/watch-url-up.ps1"
 Write-Host "... Installed modules checked" -ForegroundColor Green
 
-Write-Host "Setting up sampledata..." -ForegroundColor Yellow
-Invoke-Expression "./$scriptsDir/setup-sampledata.ps1 -ApiUrl http://localhost:8090 -Verbose -Debug"
-Write-Host "... Sampledata set up" -ForegroundColor Green
+if ($skipSampleData) {
+    Write-Host "Skipping sampledata setup (--skipSampleData)" -ForegroundColor Yellow
+}
+else {
+    Write-Host "Setting up sampledata..." -ForegroundColor Yellow
+    Invoke-Expression "./$scriptsDir/setup-sampledata.ps1 -ApiUrl http://localhost:8090 -Verbose -Debug"
+    Write-Host "... Sampledata set up" -ForegroundColor Green
+}

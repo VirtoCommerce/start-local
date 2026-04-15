@@ -161,7 +161,19 @@ if ($proceed -eq "" -or $proceed -eq "y" -or $proceed -eq "Y") {
     }
 
     Write-Host "Using version: $vcSolutionVersion" -ForegroundColor Green
-    Invoke-Expression "./$targetFolder/build-VC-solution.ps1 -vcSolutionVersion $vcSolutionVersion"
+
+    # Ask user about sample data installation
+    $sampleDataChoice = Read-Host "Do you want to install sample data? (Y/n)"
+    $skipSampleData = $false
+    if ($sampleDataChoice -eq "n" -or $sampleDataChoice -eq "N") {
+        $skipSampleData = $true
+        Write-Host "Sample data installation will be skipped." -ForegroundColor Yellow
+    }
+    else {
+        Write-Host "Sample data will be installed." -ForegroundColor Green
+    }
+
+    Invoke-Expression "./$targetFolder/build-VC-solution.ps1 -vcSolutionVersion $vcSolutionVersion -skipSampleData `$$skipSampleData"
 }
 else {
     Write-Host "Build process skipped. You can run it manually later using: ./$targetFolder/build-VC-solution.ps1" -ForegroundColor Yellow

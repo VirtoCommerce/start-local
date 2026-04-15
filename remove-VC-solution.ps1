@@ -8,30 +8,25 @@ if (-not (Test-Path -Path $dockerComposePath)) {
     exit 1
 }
 
-# Read DB_PROVIDER from .env
-$envFile = Join-Path $solutionFolder ".env"
-$dbProvider = (Get-Content $envFile | Select-String -Pattern "^DB_PROVIDER=").Line.Split('=')[1].Trim()
+# Iterate over all known providers so volumes from inactive providers are also removed.
+# Side-by-side data volumes (postgres_data, mysql_data, mssql_data) are only declared
+# in their respective override files, so each must be brought down with -v.
 $validProviders = @("postgres", "mysql", "sqlserver")
-if ($dbProvider -notin $validProviders) {
-    Write-Host "Error: Invalid DB_PROVIDER '$dbProvider' in .env file. Must be one of: $($validProviders -join ', ')" -ForegroundColor Red
-    exit 1
-}
 
-$dbOverridePath = "$solutionFolder/docker-compose.$dbProvider.yml"
-if (-not (Test-Path -Path $dbOverridePath)) {
-    Write-Host "Error: Docker compose override file not found: $dbOverridePath" -ForegroundColor Red
-    exit 1
+Write-Host "Stopping and removing VC solution from docker (all providers)..." -ForegroundColor Yellow
+foreach ($provider in $validProviders) {
+    $providerOverridePath = "$solutionFolder/docker-compose.$provider.yml"
+    if (-not (Test-Path -Path $providerOverridePath)) {
+        Write-Host "  - Override file not found, skipping: $providerOverridePath" -ForegroundColor DarkYellow
+        continue
+    }
+    Write-Host "  - Removing for provider: $provider" -ForegroundColor Cyan
+    docker-compose -f $dockerComposePath -f $providerOverridePath down -v
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "    Warning: docker-compose down -v for '$provider' returned exit code $LASTEXITCODE" -ForegroundColor Yellow
+    }
 }
-
-Write-Host "Stopping and removing VC solution from docker..." -ForegroundColor Yellow
-docker-compose -f $dockerComposePath -f $dbOverridePath down -v
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Error: Failed to remove VC solution" -ForegroundColor Red
-    Write-Host "docker-compose command failed with exit code: $LASTEXITCODE" -ForegroundColor Red
-    # exit 1
-} else {
-    Write-Host "... VC solution stopped and removed" -ForegroundColor Green
-}
+Write-Host "... VC solution stopped and all DB volumes removed" -ForegroundColor Green
 
 Write-Host "Removing backend Docker image..." -ForegroundColor Yellow
 docker rmi vc-platform:local-latest
