@@ -150,6 +150,45 @@ ES_MEM_LIMIT=1g
 > After changing the `.env` file, restart the services using `stop-VC-solution.ps1` and `start-VC-solution.ps1`
 
 
+## 🛠️ Troubleshooting
+
+### Clearing Docker builder cache
+
+In some cases, a failed or interrupted build can leave stale layers in the Docker builder cache, causing subsequent `build-VC-solution.ps1` runs to fail or produce unexpected results (e.g., missing files, outdated dependencies, or errors that disappear after a fresh pull). If you suspect this, inspect and clear the cache, then rebuild.
+
+Check overall Docker disk usage (images, containers, volumes, build cache):
+
+```pwsh
+docker system df
+```
+
+For a detailed breakdown of individual build cache entries and their sizes:
+
+```pwsh
+docker system df -v
+```
+
+Or list builder cache records directly:
+
+```pwsh
+docker builder du
+```
+
+Remove all build cache:
+
+```pwsh
+docker builder prune -af
+```
+
+To reclaim space from unused images, containers, networks, **and** build cache in one go:
+
+```pwsh
+docker system prune -af
+```
+
+> [!WARNING]
+> These commands remove cache/data on the host globally, not just for this solution. Subsequent builds of other projects will be slower until their caches are repopulated, and `docker system prune` will also delete any stopped containers and dangling images from unrelated projects.
+
 ## 🗑️ Uninstallation
 To fully uninstall and erase all data:
 1. Run `/VirtoLocal/remove-VC-solution.ps1`
