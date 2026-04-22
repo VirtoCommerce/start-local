@@ -58,8 +58,8 @@ Each provider stores its data in a separate Docker volume. Switching providers d
 After the build completes and the solution starts, you'll be prompted to install sample data (catalogs, products, etc.). Installation is enabled by default — press Enter or `Y` to install, or `N` to skip.
 
 You can also control sample data installation via parameter when running scripts directly:
-- `.\start-VC-solution.ps1 -skipSampleData $true` — start the solution without installing sample data
-- `.\build-VC-solution.ps1 -skipSampleData $true` — pass through to the start step
+- `.\build-VC-solution.ps1 -skipSampleData $true` — build and start without installing sample data (default: `$false`, sample data is installed)
+- `.\start-VC-solution.ps1 -skipSampleData $false` — re-run the start step **and** install sample data. Direct `start-VC-solution.ps1` invocations default to **skipping** sample data, since `start` is most commonly used to restart an existing install that already has data.
 
 ### Created Files and Folders
 
@@ -108,7 +108,7 @@ The manual installation steps are as follows:
 - Elasticsearch
 - Kibana
 
-`start-VC-solution.ps1` accepts a `skipSampleData` parameter (default `$false`) — pass `$true` to skip the sample data setup step.
+`start-VC-solution.ps1` accepts a `skipSampleData` parameter. When invoked directly (not via `build-VC-solution.ps1`), it defaults to `$true` — sample data is **not** installed on a bare `start` run. Pass `-skipSampleData $false` if you want to install sample data on a direct start.
 
 Use `stop-VC-solution.ps1` to pause containers while preserving your data.
 

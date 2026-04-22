@@ -1,6 +1,6 @@
 param (
     [string]$solutionFolder = "VirtoLocal",
-    [bool]$skipSampleData = $false
+    [bool]$skipSampleData = $true
 )
 function Test-PortInUse {
     param([int]$Port)
