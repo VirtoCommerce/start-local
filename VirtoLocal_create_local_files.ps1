@@ -101,6 +101,7 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-lo
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/$branch/scripts/setup-sampledata.ps1" -OutFile (Join-Path $scriptsDir "setup-sampledata.ps1")
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/$branch/scripts/watch-url-up.ps1" -OutFile (Join-Path $scriptsDir "watch-url-up.ps1")
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/$branch/scripts/docker-compose-helper.ps1" -OutFile (Join-Path $scriptsDir "docker-compose-helper.ps1")
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/refs/heads/$branch/scripts/auth-helper.ps1" -OutFile (Join-Path $scriptsDir "auth-helper.ps1")
 Write-Host "... Scripts-helpers downloaded" -ForegroundColor Green
 
 # download config files for the backend
