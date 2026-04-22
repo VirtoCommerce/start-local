@@ -1,7 +1,8 @@
 param (
     [string]$targetFolder = "VirtoLocal",
     [ValidateSet("latest-stable", "edge")]
-    [string]$vcSolutionVersion = "latest-stable"
+    [string]$vcSolutionVersion = "latest-stable",
+    [bool]$skipSampleData = $false
 )
 
 function New-Folder($folder) {
@@ -105,7 +106,7 @@ Remove-Item -Recurse -Force $frontendDir/artifact
 $proceed = Read-Host "Do you want to proceed with running the VirtoCommerce solution? (Y/n)"
 if ($proceed -eq "" -or $proceed -eq "y" -or $proceed -eq "Y") {
     Write-Host "Starting run process..." -ForegroundColor Yellow
-    Invoke-Expression "./$targetFolder/start-VC-solution.ps1"
+    Invoke-Expression "./$targetFolder/start-VC-solution.ps1 -skipSampleData `$$skipSampleData"
 }
 else {
     Write-Host "Run process skipped. You can run it manually later using: ./$targetFolder/start-VC-solution.ps1" -ForegroundColor Yellow

@@ -4,8 +4,11 @@ Param(
     $Username = "admin",
     $Password = "store",
     $ContainerId = "",
-    $watchUrlScriptPath = "./scripts/watch-url-up.ps1"
+    $watchUrlScriptPath = "./scripts/watch-url-up.ps1",
+    [int]$MinInstalledModules = 23
 )
+
+$ErrorActionPreference = "Stop"
 
 function Get-ContainerIdByImage {
     param (
@@ -53,28 +56,7 @@ if ([string]::IsNullOrEmpty($ContainerId)) {
 $appAuthUrl = "$ApiUrl/connect/token"
 $checkModulesUrl = "$ApiUrl/api/platform/modules"
 
-function Get-AuthToken {
-    param (
-        $appAuthUrl,
-        $username,
-        $password
-    )
-    Write-Output "Get-AuthToken: appAuthUrl $appAuthUrl"
-    $grant_type = "password"
-    $content_type = "application/x-www-form-urlencoded"
-
-    $body = @{username = $username; password = $password; grant_type = $grant_type }
-    try {
-        $response = Invoke-WebRequest -Uri $appAuthUrl -Method Post -ContentType $content_type -Body $body -SkipCertificateCheck -MaximumRetryCount 5 -RetryIntervalSec 5
-    }
-    catch {
-        Write-Error "There was an error getting the AuthToken. $_"
-        exit 1
-    }
-    
-    $responseContent = $response.Content | ConvertFrom-Json
-    return $responseContent.access_token
-}
+. "$PSScriptRoot/auth-helper.ps1"
 
 function Watch-Url-Up {
     param 
@@ -144,36 +126,46 @@ function Watch-Url-Up {
 
 $platformIsUp = (Watch-Url-Up -ApiUrl $ApiUrl -TimeoutMinutes 15 -RetrySeconds 15 -WaitSeconds 15 -ContainerId $ContainerId)
 
-if ($platformIsUp) {
-    $authToken = (Get-AuthToken $appAuthUrl $Username $Password)[1]
-    $headers = @{}
-    $headers.Add("Authorization", "Bearer $authToken")
-    try {
-        $modules = Invoke-RestMethod $checkModulesUrl -Method Get -Headers $headers -SkipCertificateCheck -MaximumRetryCount 5 -RetryIntervalSec 5
+if (-not $platformIsUp) {
+    Write-Host "Error: Platform at $ApiUrl did not become available in time." -ForegroundColor Red
+    exit 1
+}
+
+$authToken = Get-AuthToken $appAuthUrl $Username $Password
+if ([string]::IsNullOrWhiteSpace($authToken)) {
+    Write-Host "Error: auth token is empty after Get-AuthToken." -ForegroundColor Red
+    exit 1
+}
+
+$headers = @{}
+$headers.Add("Authorization", "Bearer $authToken")
+try {
+    $modules = Invoke-RestMethod $checkModulesUrl -Method Get -Headers $headers -SkipCertificateCheck -MaximumRetryCount 5 -RetryIntervalSec 5
+}
+catch {
+    Write-Host "Error: Failed to check modules status at $checkModulesUrl" -ForegroundColor Red
+    Write-Host $_.Exception.Message -ForegroundColor Red
+    exit 1
+}
+$installedModules = 0
+if ($modules.Length -le 0) {
+    Write-Host "Error: No module info returned from $checkModulesUrl" -ForegroundColor Red
+    exit 1
+}
+Foreach ($module in $modules) {
+    if ($module.isInstalled) {
+        Write-Host "`e[32m$($module.id) version $($module.version) is installed"
+        $installedModules++
     }
-    catch {
-        Write-Error "There was an error checking the modules status. $_"
+    if ($module.validationErrors.Length -gt 0) {
+        Write-Host "Error: Module $($module.id) has validation errors:" -ForegroundColor Red
+        Write-Output $module.validationErrors
         exit 1
     }
-    $installedModules = 0
-    if ($modules.Length -le 0) {
-        Write-Output "No module's info returned"
-        exit 1
-    }
-    Foreach ($module in $modules) {
-        if ($module.isInstalled) {
-            Write-Host "`e[32m$($module.id) version $($module.version) is installed"
-            $installedModules++
-        }
-        if ($module.validationErrors.Length -gt 0) {
-            Write-Output $module.id
-            Write-Output $module.validationErrors
-            exit 1
-        }
-    }
-    Write-Output "Modules installed: $installedModules"
-    if ($installedModules -lt 23) {
-        exit 1
-    }
+}
+Write-Output "Modules installed: $installedModules"
+if ($installedModules -lt $MinInstalledModules) {
+    Write-Host "Error: Expected at least $MinInstalledModules installed modules, found $installedModules." -ForegroundColor Red
+    exit 1
 }
 

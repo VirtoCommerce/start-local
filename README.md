@@ -3,14 +3,17 @@
 Set up a complete Virto Commerce environment on your local machine with a single PowerShell script. The solution includes:
 - Virto Commerce Backend
 - Virto Commerce Frontend
-- PostgreSQL database
+- Database (PostgreSQL, MySQL, or SQL Server)
 - Redis
 - Elasticsearch
 - Kibana
 
-> [!IMPORTANT]  
+> [!IMPORTANT]
 > This setup is for local development and testing only. Not for production use!
-> !TODO! For production deployments, consult the official documentation for [Elasticsearch](https://www.elastic.co/downloads/elasticsearch) and [Kibana](https://www.elastic.co/downloads/kibana).
+>
+> Elasticsearch and Kibana run with security features disabled (`xpack.security.enabled=false`, both HTTP and transport TLS off) to match the default `basic` self-generated license used in this local setup. There is no authentication on the search cluster — anyone with network access to the published ports can read or modify the indexes. **Do not expose these ports beyond your local machine.**
+>
+> For production deployments, enable security and consult the official documentation for [Elasticsearch](https://www.elastic.co/guide/en/elasticsearch/reference/current/secure-cluster.html) and [Kibana](https://www.elastic.co/guide/en/kibana/current/using-kibana-with-security.html).
 
 ## 💻 System Requirements
 - ~5 GB available disk space
@@ -28,6 +31,37 @@ Run this command to create a local `VirtoLocal` directory with all required file
 ```pwsh
 $installSCript = Invoke-WebRequest -Uri "https://raw.githubusercontent.com/VirtoCommerce/start-local/dev/VirtoLocal_create_local_files.ps1" -UseBasicParsing; Set-Content -Path ".\VirtoLocal_create_local_files.ps1" -Value $installSCript.Content; .\VirtoLocal_create_local_files.ps1
 ```
+
+### Database Provider Selection
+
+During initial setup, you'll be prompted to choose a database provider:
+
+| Provider   | Default Version | Default Port |
+|------------|-----------------|--------------|
+| PostgreSQL | 18.3            | 5432         |
+| MySQL      | 9.3             | 3306         |
+| SQL Server | 2022-latest     | 1433         |
+
+You can also pass the provider via parameter: `.\VirtoLocal_create_local_files.ps1 -dbProvider mysql`
+
+#### Switching Database Providers
+
+To switch providers after initial setup:
+1. Edit `.env` and change `DB_PROVIDER` to `postgres`, `mysql`, or `sqlserver`
+2. Run `stop-VC-solution.ps1` (if currently running)
+3. Run `start-VC-solution.ps1`
+
+Each provider stores its data in a separate Docker volume. Switching providers does **not** remove the previous provider's data. When you switch back, your data is still there. Only `remove-VC-solution.ps1` removes all volumes.
+
+### Sample Data Installation
+
+After the build completes and the solution starts, you'll be prompted to install sample data (catalogs, products, etc.). Installation is enabled by default — press Enter or `Y` to install, or `N` to skip.
+
+You can also control sample data installation via parameter when running scripts directly:
+- `.\build-VC-solution.ps1 -skipSampleData $true` — build and start without installing sample data (default: `$false`, sample data is installed)
+- `.\start-VC-solution.ps1 -skipSampleData $false` — re-run the start step **and** install sample data. Direct `start-VC-solution.ps1` invocations default to **skipping** sample data, since `start` is most commonly used to restart an existing install that already has data.
+
+### Created Files and Folders
 
 The following files and folders will be created:
 - `docker-compose.yml`: Docker Compose configuration for VirtoCommerce solution
@@ -61,17 +95,20 @@ Please take a look at [Virto Commerce Documentation](https://docs.virtocommerce.
 
 ### Manual Installation
 The manual installation steps are as follows:
-1. First run `build-VC-solution.ps1` with these version options:
-- `vcSolutionVersion` parameter:
+1. First run `build-VC-solution.ps1` with these parameters:
+- `vcSolutionVersion`:
     - `latest-stable`: Installs the latest stable backend bundle with compatible frontend
-    - `edge: Installs` the newest backend and frontend releases
+    - `edge`: Installs the newest backend and frontend releases
+- `skipSampleData` (optional, default `$false`): pass `$true` to skip sample data installation when the start step is invoked automatically
 
 2. Then run `start-VC-solution.ps1` to launch:
 - Virtocommerce backend/frontend
-- PostgreSQL
+- Database (PostgreSQL, MySQL, or SQL Server — configured in .env)
 - Redis
 - Elasticsearch
 - Kibana
+
+`start-VC-solution.ps1` accepts a `skipSampleData` parameter. When invoked directly (not via `build-VC-solution.ps1`), it defaults to `$true` — sample data is **not** installed on a bare `start` run. Pass `-skipSampleData $false` if you want to install sample data on a direct start.
 
 Use `stop-VC-solution.ps1` to pause containers while preserving your data.
 
@@ -79,23 +116,90 @@ Use `stop-VC-solution.ps1` to pause containers while preserving your data.
 Customize versions and ports in the `.env` file. Default settings:
 
 ```
+DB_PROVIDER=postgres
+
+# PostgreSQL
 PGSQL_VERSION=18.3
+PGSQL_PORT=5432
+
+# MySQL
+MYSQL_VERSION=9.3
+MYSQL_PORT=3306
+
+# SQL Server
+MSSQL_VERSION=2022-latest
+MSSQL_PORT=1433
+
+# Shared
+DB_PASSWORD=$(New-RandomPassword)   # auto-generated at setup; do not edit manually unless you also reset the DB volume
 STACK_VERSION=8.18.0
 PLATFORM_PORT=8090
 ES_PORT=9200
 KIBANA_PORT=5601
-DB_PASSWORD=$(New-RandomPassword)
 REDIS_PASSWORD=$(New-RandomPassword)
 ELASTIC_PASSWORD=$(New-RandomPassword)
 KIBANA_PASSWORD=$(New-RandomPassword)
-PGSQL_PORT=5432
 REDIS_PORT=6379
 FRONTEND_PORT=80
+ES_CLUSTER_NAME=elasticsearch
+ES_LICENSE=basic
+ES_MEM_LIMIT=1g
 ```
 
 > [!IMPORTANT]
 > After changing the `.env` file, restart the services using `stop-VC-solution.ps1` and `start-VC-solution.ps1`
 
+
+## ⬆️ Upgrading from an earlier install
+
+> [!WARNING]
+> The multi-database release renames all Docker volumes with a `virto_` prefix (`virto_cms-content-data`, `virto_modules-data`, `virto_postgres_data`, `virto_esdata01`, `virto_redisdata`). If you already have a working install from an earlier version, running `start-VC-solution.ps1` after upgrading will create **new, empty** volumes — the old ones remain on disk but are no longer attached.
+>
+> Recommended upgrade path:
+> 1. Start the old version and export anything you need (catalog data, modules, etc.).
+> 2. Run `remove-VC-solution.ps1` on the old version to clean up orphan volumes.
+> 3. Re-run the initial setup with the new version.
+>
+> If you prefer to keep the old data in place and start fresh, the old volumes can be identified with `docker volume ls` and removed manually when you are sure they are no longer needed.
+
+## 🛠️ Troubleshooting
+
+### Clearing Docker builder cache
+
+In some cases, a failed or interrupted build can leave stale layers in the Docker builder cache, causing subsequent `build-VC-solution.ps1` runs to fail or produce unexpected results (e.g., missing files, outdated dependencies, or errors that disappear after a fresh pull). If you suspect this, inspect and clear the cache, then rebuild.
+
+Check overall Docker disk usage (images, containers, volumes, build cache):
+
+```pwsh
+docker system df
+```
+
+For a detailed breakdown of individual build cache entries and their sizes:
+
+```pwsh
+docker system df -v
+```
+
+Or list builder cache records directly:
+
+```pwsh
+docker builder du
+```
+
+Remove all build cache:
+
+```pwsh
+docker builder prune -af
+```
+
+To reclaim space from unused images, containers, networks, **and** build cache in one go:
+
+```pwsh
+docker system prune -af
+```
+
+> [!WARNING]
+> These commands remove cache/data on the host globally, not just for this solution. Subsequent builds of other projects will be slower until their caches are repopulated, and `docker system prune` will also delete any stopped containers and dangling images from unrelated projects.
 
 ## 🗑️ Uninstallation
 To fully uninstall and erase all data:
@@ -108,7 +212,17 @@ To fully uninstall and erase all data:
 > This permanently destroys all data.
 
 > [!WARNING]  
-> PostgresSQL, Redis, Elasticsearch, and Kibana base images remain installed.
+> Database (PostgreSQL, MySQL, or SQL Server), Redis, Elasticsearch, and Kibana base images remain installed.
+
+## 🧪 Advanced / Testing
+
+`VirtoLocal_create_local_files.ps1` supports a `-branch` parameter (default `dev`) that controls which branch of the [start-local](https://github.com/VirtoCommerce/start-local) repository is used to fetch the management scripts and docker-compose files. Use this when testing changes from a feature branch:
+
+```pwsh
+.\VirtoLocal_create_local_files.ps1 -branch feature/my-test-branch
+```
+
+This parameter has no interactive prompt and is intended for development/testing of the `start-local` scripts themselves.
 
 ## References
 * [Home](https://virtocommerce.com)

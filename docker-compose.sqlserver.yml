@@ -1,0 +1,31 @@
+services:
+
+  vc-db:
+    image: mcr.microsoft.com/mssql/server:${MSSQL_VERSION:-2022-latest}
+    ports:
+      - "${MSSQL_PORT:-1433}:1433"
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=${DB_PASSWORD:-v!rto_Labs!}
+    volumes:
+      - mssql_data:/var/opt/mssql
+    networks:
+      - virto
+
+  vc-platform-web:
+    environment:
+      - DatabaseProvider=SqlServer
+      - ConnectionStrings:VirtoCommerce=Server=vc-db,1433;Database=VirtoCommerce3;User Id=sa;Password=${DB_PASSWORD:-v!rto_Labs!};TrustServerCertificate=True
+    depends_on:
+      - vc-db
+      - es
+      - redis
+    entrypoint: ["/wait-for-it.sh", "vc-db:1433", "-t", "120", "--", "/wait-for-it.sh", "es:9200", "-t", "120", "--", "/wait-for-it.sh", "redis:6379", "-t", "120", "--", "dotnet", "VirtoCommerce.Platform.Web.dll"]
+
+volumes:
+  mssql_data:
+    name: virto_mssql_data
+    driver: local
+
+networks:
+  virto:

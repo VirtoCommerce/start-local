@@ -6,27 +6,9 @@ Param(
     $Password = "store"
 )
 
-function Get-AuthToken {
-    param (
-        $appAuthUrl,
-        $username,
-        $password
-    )
-    Write-Output "Get-AuthToken: appAuthUrl $appAuthUrl"
-    $grant_type = "password"
-    $content_type = "application/x-www-form-urlencoded"
+$ErrorActionPreference = "Stop"
 
-    $body = @{username = $username; password = $password; grant_type = $grant_type }
-    try {
-        $response = Invoke-WebRequest -Uri $appAuthUrl -Method Post -ContentType $content_type -Body $body -SkipCertificateCheck -MaximumRetryCount 5 -RetryIntervalSec 5
-        $responseContent = $response.Content | ConvertFrom-Json
-        return $responseContent.access_token
-    }
-    catch {
-        Write-Output $_.Exception
-        exit 1
-    }
-}  
+. "$PSScriptRoot/auth-helper.ps1"
 
 $sdStateUrl = "$ApiUrl/api/platform/pushnotifications"
 if ([string]::IsNullOrWhiteSpace($SampleDataSrc)) {
@@ -37,11 +19,23 @@ else {
 }
 $appAuthUrl = "$ApiUrl/connect/token"
 
-#Start-Sleep -Seconds 15
-$authToken = (Get-AuthToken $appAuthUrl $Username $Password)[1]
+$authToken = Get-AuthToken $appAuthUrl $Username $Password
+if ([string]::IsNullOrWhiteSpace($authToken)) {
+    Write-Host "Error: auth token is empty after Get-AuthToken." -ForegroundColor Red
+    exit 1
+}
+
 $headers = @{}
 $headers.Add("Authorization", "Bearer $authToken")
-$installResult = Invoke-RestMethod -Uri $sdInstallUrl -ContentType "application/json" -Method Post -Headers $headers -SkipCertificateCheck -MaximumRetryCount 5 -RetryIntervalSec 5
+
+try {
+    $installResult = Invoke-RestMethod -Uri $sdInstallUrl -ContentType "application/json" -Method Post -Headers $headers -SkipCertificateCheck -MaximumRetryCount 5 -RetryIntervalSec 5
+}
+catch {
+    Write-Host "Error: Failed to start sample data installation at $sdInstallUrl" -ForegroundColor Red
+    Write-Host $_.Exception.Message -ForegroundColor Red
+    exit 1
+}
 Write-Output $installResult
 
 $notificationId = $installResult.id
@@ -50,9 +44,18 @@ $NotificationStateJson = @"
 "@
 
 $notify = @{}
+$cycleCount = 0
+$maxCycles = 180   # 180 * 3s sleep ≈ 9 minutes
 do {
     Start-Sleep -s 3
-    $state = Invoke-RestMethod "$sdStateUrl" -Body $NotificationStateJson -Method Post -ContentType "application/json" -Headers $headers -SkipCertificateCheck
+    try {
+        $state = Invoke-RestMethod "$sdStateUrl" -Body $NotificationStateJson -Method Post -ContentType "application/json" -Headers $headers -SkipCertificateCheck
+    }
+    catch {
+        Write-Host "Error: Failed to query sample data installation state at $sdStateUrl" -ForegroundColor Red
+        Write-Host $_.Exception.Message -ForegroundColor Red
+        exit 1
+    }
     Write-Output $state
     if ($state.notifyEvents -ne $null ) {
         $notify = $state.notifyEvents
@@ -62,6 +65,12 @@ do {
             exit 1
         }
     }
+    $cycleCount++
 }
-while (([string]::IsNullOrEmpty($notify.finished)) -and $cycleCount -lt 180)
+while (([string]::IsNullOrEmpty($notify.finished)) -and $cycleCount -lt $maxCycles)
+
+if ([string]::IsNullOrEmpty($notify.finished)) {
+    Write-Host "Error: Sample data installation did not complete within $($maxCycles * 3) seconds." -ForegroundColor Red
+    exit 1
+}
 Write-Host "`e[32mSample data installation complete."
