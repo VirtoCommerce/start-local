@@ -78,13 +78,13 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "Removing solution folder..." -ForegroundColor Yellow
-Remove-Item -Recurse -Force $solutionFolder
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Error: Failed to remove solution folder" -ForegroundColor Red
-    Write-Host "Remove-Item command failed with exit code: $LASTEXITCODE" -ForegroundColor Red
-    exit 1
-} else {
+try {
+    Remove-Item -Recurse -Force $solutionFolder -ErrorAction Stop
     Write-Host "... Solution folder removed" -ForegroundColor Green
+} catch {
+    Write-Host "Error: Failed to remove solution folder '$solutionFolder'" -ForegroundColor Red
+    Write-Host $_.Exception.Message -ForegroundColor Red
+    exit 1
 }
 
 Write-Host "Done" -ForegroundColor Green

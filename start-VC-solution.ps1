@@ -41,7 +41,16 @@ if (-not (Test-Path -Path $dockerComposePath)) {
 
 # Read DB_PROVIDER from .env
 $envFile = Join-Path $solutionFolder ".env"
-$dbProvider = (Get-Content $envFile | Select-String -Pattern "^DB_PROVIDER=").Line.Split('=')[1].Trim()
+if (-not (Test-Path -Path $envFile)) {
+    Write-Host "Error: .env file not found: $envFile" -ForegroundColor Red
+    exit 1
+}
+$dbProviderLine = Get-Content $envFile | Select-String -Pattern "^DB_PROVIDER=" | Select-Object -First 1
+if (-not $dbProviderLine) {
+    Write-Host "Error: DB_PROVIDER is not set in $envFile" -ForegroundColor Red
+    exit 1
+}
+$dbProvider = $dbProviderLine.Line.Split('=', 2)[1].Trim().ToLower()
 $validProviders = @("postgres", "mysql", "sqlserver")
 if ($dbProvider -notin $validProviders) {
     Write-Host "Error: Invalid DB_PROVIDER '$dbProvider' in .env file. Must be one of: $($validProviders -join ', ')" -ForegroundColor Red
@@ -67,15 +76,22 @@ $dbPortVar = $dbPortVarMap[$dbProvider]
 Write-Host "Checking required ports..." -ForegroundColor Yellow
 $envContent = Get-Content $envFile
 
+# Parse .env into a hashtable once — reused for port checks and URL building.
+$envValues = @{}
+foreach ($envLine in $envContent) {
+    if ($envLine -match '^\s*([^#=\s][^=]*)=(.*)$') {
+        $envValues[$matches[1].Trim()] = $matches[2].Trim()
+    }
+}
+
 # Collect shared ports (non-DB) + the active DB port
 $sharedPortVars = @("PLATFORM_PORT", "ES_PORT", "KIBANA_PORT", "REDIS_PORT", "FRONTEND_PORT")
 $allPortVars = $sharedPortVars + @($dbPortVar)
 
 $requiredPorts = @()
 foreach ($varName in $allPortVars) {
-    $line = $envContent | Select-String -Pattern "^$varName=" | Select-Object -First 1
-    if ($line) {
-        $requiredPorts += $line.Line.Split('=')[1].Trim()
+    if ($envValues.ContainsKey($varName)) {
+        $requiredPorts += $envValues[$varName]
     }
 }
 
@@ -92,6 +108,9 @@ foreach ($port in $requiredPorts) {
 }
 Write-Host "Ports check completed" -ForegroundColor Green
 
+$platformPort = if ($envValues.ContainsKey("PLATFORM_PORT")) { $envValues["PLATFORM_PORT"] } else { "8090" }
+$platformApiUrl = "http://localhost:$platformPort"
+
 Write-Host "Starting VC solution..." -ForegroundColor Yellow
 Invoke-DockerCompose -f $dockerComposePath -f $dbOverridePath up -d
 if ($LASTEXITCODE -ne 0) {
@@ -103,7 +122,7 @@ Write-Host "... VC solution started" -ForegroundColor Green
 
 Write-Host "Checking installed modules..." -ForegroundColor Yellow
 $solutionFolderLower = $solutionFolder.ToLower()
-Invoke-Expression "./$scriptsDir/check-installed-modules.ps1 -ApiUrl http://localhost:8090 -ContainerId '$solutionFolderLower-vc-platform-web-1' -watchUrlScriptPath $scriptsDir/watch-url-up.ps1"
+Invoke-Expression "./$scriptsDir/check-installed-modules.ps1 -ApiUrl $platformApiUrl -ContainerId '$solutionFolderLower-vc-platform-web-1' -watchUrlScriptPath $scriptsDir/watch-url-up.ps1"
 Write-Host "... Installed modules checked" -ForegroundColor Green
 
 if ($skipSampleData) {
@@ -111,6 +130,6 @@ if ($skipSampleData) {
 }
 else {
     Write-Host "Setting up sampledata..." -ForegroundColor Yellow
-    Invoke-Expression "./$scriptsDir/setup-sampledata.ps1 -ApiUrl http://localhost:8090 -Verbose -Debug"
+    Invoke-Expression "./$scriptsDir/setup-sampledata.ps1 -ApiUrl $platformApiUrl -Verbose -Debug"
     Write-Host "... Sampledata set up" -ForegroundColor Green
 }

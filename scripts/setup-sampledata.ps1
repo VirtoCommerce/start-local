@@ -80,6 +80,7 @@ $NotificationStateJson = @"
 
 $notify = @{}
 $cycleCount = 0
+$maxCycles = 180   # 180 * 3s sleep ≈ 9 minutes
 do {
     Start-Sleep -s 3
     try {
@@ -101,5 +102,10 @@ do {
     }
     $cycleCount++
 }
-while (([string]::IsNullOrEmpty($notify.finished)) -and $cycleCount -lt 180)
+while (([string]::IsNullOrEmpty($notify.finished)) -and $cycleCount -lt $maxCycles)
+
+if ([string]::IsNullOrEmpty($notify.finished)) {
+    Write-Host "Error: Sample data installation did not complete within $($maxCycles * 3) seconds." -ForegroundColor Red
+    exit 1
+}
 Write-Host "`e[32mSample data installation complete."

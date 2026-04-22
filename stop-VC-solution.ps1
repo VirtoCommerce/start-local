@@ -10,23 +10,22 @@ if (-not (Test-Path -Path $dockerComposePath)) {
 
 . "$solutionFolder/scripts/docker-compose-helper.ps1"
 
-# Read DB_PROVIDER from .env
-$envFile = Join-Path $solutionFolder ".env"
-$dbProvider = (Get-Content $envFile | Select-String -Pattern "^DB_PROVIDER=").Line.Split('=')[1].Trim()
+# Merge ALL provider override files so 'down' works regardless of which
+# provider is set in .env (or if .env is missing/corrupt). Only the containers
+# actually running will be stopped.
 $validProviders = @("postgres", "mysql", "sqlserver")
-if ($dbProvider -notin $validProviders) {
-    Write-Host "Error: Invalid DB_PROVIDER '$dbProvider' in .env file. Must be one of: $($validProviders -join ', ')" -ForegroundColor Red
-    exit 1
+$composeArgs = @("-f", $dockerComposePath)
+foreach ($provider in $validProviders) {
+    $providerOverridePath = "$solutionFolder/docker-compose.$provider.yml"
+    if (Test-Path -Path $providerOverridePath) {
+        $composeArgs += "-f"
+        $composeArgs += $providerOverridePath
+    }
 }
+$composeArgs += "down"
 
-$dbOverridePath = "$solutionFolder/docker-compose.$dbProvider.yml"
-if (-not (Test-Path -Path $dbOverridePath)) {
-    Write-Host "Error: Docker compose override file not found: $dbOverridePath" -ForegroundColor Red
-    exit 1
-}
-
-Write-Host "Stopping VC solution (provider: $dbProvider)..." -ForegroundColor Yellow
-Invoke-DockerCompose -f $dockerComposePath -f $dbOverridePath down
+Write-Host "Stopping VC solution..." -ForegroundColor Yellow
+Invoke-DockerCompose @composeArgs
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Error: Failed to stop VC solution" -ForegroundColor Red
     Write-Host "docker compose command failed with exit code: $LASTEXITCODE" -ForegroundColor Red

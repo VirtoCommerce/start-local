@@ -4,7 +4,8 @@ Param(
     $Username = "admin",
     $Password = "store",
     $ContainerId = "",
-    $watchUrlScriptPath = "./scripts/watch-url-up.ps1"
+    $watchUrlScriptPath = "./scripts/watch-url-up.ps1",
+    [int]$MinInstalledModules = 23
 )
 
 $ErrorActionPreference = "Stop"
@@ -198,8 +199,8 @@ Foreach ($module in $modules) {
     }
 }
 Write-Output "Modules installed: $installedModules"
-if ($installedModules -lt 23) {
-    Write-Host "Error: Expected at least 23 installed modules, found $installedModules." -ForegroundColor Red
+if ($installedModules -lt $MinInstalledModules) {
+    Write-Host "Error: Expected at least $MinInstalledModules installed modules, found $installedModules." -ForegroundColor Red
     exit 1
 }
 

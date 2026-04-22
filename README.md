@@ -131,7 +131,7 @@ MSSQL_VERSION=2022-latest
 MSSQL_PORT=1433
 
 # Shared
-DB_PASSWORD=$(New-RandomPassword)
+DB_PASSWORD=$(New-RandomPassword)   # auto-generated at setup; do not edit manually unless you also reset the DB volume
 STACK_VERSION=8.18.0
 PLATFORM_PORT=8090
 ES_PORT=9200
@@ -149,6 +149,18 @@ ES_MEM_LIMIT=1g
 > [!IMPORTANT]
 > After changing the `.env` file, restart the services using `stop-VC-solution.ps1` and `start-VC-solution.ps1`
 
+
+## ⬆️ Upgrading from an earlier install
+
+> [!WARNING]
+> The multi-database release renames all Docker volumes with a `virto_` prefix (`virto_cms-content-data`, `virto_modules-data`, `virto_postgres_data`, `virto_esdata01`, `virto_redisdata`). If you already have a working install from an earlier version, running `start-VC-solution.ps1` after upgrading will create **new, empty** volumes — the old ones remain on disk but are no longer attached.
+>
+> Recommended upgrade path:
+> 1. Start the old version and export anything you need (catalog data, modules, etc.).
+> 2. Run `remove-VC-solution.ps1` on the old version to clean up orphan volumes.
+> 3. Re-run the initial setup with the new version.
+>
+> If you prefer to keep the old data in place and start fresh, the old volumes can be identified with `docker volume ls` and removed manually when you are sure they are no longer needed.
 
 ## 🛠️ Troubleshooting
 
