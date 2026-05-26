@@ -99,7 +99,22 @@ The manual installation steps are as follows:
 - `vcSolutionVersion`:
     - `latest-stable`: Installs the latest stable backend bundle with compatible frontend
     - `edge`: Installs the newest backend and frontend releases
+    - `custom`: Installs a user-supplied backend package manifest. Requires `-customPackagesJson`. Optionally accepts `-customFrontendUrl`; if omitted, the script prompts for it and falls back to the latest `vc-frontend` GitHub release when left blank.
+- `customPackagesJson` (used only with `-vcSolutionVersion custom`): Path to a local `package.json` manifest **or** an `http(s)://` URL. Auto-detected. The file is copied/downloaded to `<targetFolder>\backend\custom-packages.json` and passed to `vc-build install --package-manifest-path`.
+- `customFrontendUrl` (used only with `-vcSolutionVersion custom`, optional): Direct URL to a frontend ZIP artifact. If not provided, the script prompts; leaving the prompt empty falls back to the latest `vc-frontend` GitHub release.
 - `skipSampleData` (optional, default `$false`): pass `$true` to skip sample data installation when the start step is invoked automatically
+
+Custom-mode examples:
+
+```pwsh
+# Local manifest, frontend from GitHub release fallback
+.\build-VC-solution.ps1 -vcSolutionVersion custom -customPackagesJson .\my-packages.json
+
+# Remote manifest + explicit frontend ZIP URL (no prompts)
+.\build-VC-solution.ps1 -vcSolutionVersion custom `
+    -customPackagesJson https://example.com/my-bundle/package.json `
+    -customFrontendUrl https://example.com/my-frontend.zip
+```
 
 2. Then run `start-VC-solution.ps1` to launch:
 - Virtocommerce backend/frontend
