@@ -155,11 +155,21 @@ if ($proceed -eq "" -or $proceed -eq "y" -or $proceed -eq "Y") {
     Write-Host "Select the version to install:" -ForegroundColor Cyan
     Write-Host "1. latest-stable - Latest stable bundle of backend with compatible frontend" -ForegroundColor White
     Write-Host "2. edge - Latest available releases of backend and frontend" -ForegroundColor White
-    $versionChoice = Read-Host "Enter your choice (1 or 2, default is 1)"
+    Write-Host "3. custom - Build with a user-supplied package manifest" -ForegroundColor White
+    $versionChoice = Read-Host "Enter your choice (1, 2, or 3, default is 1)"
 
     $vcSolutionVersion = "latest-stable"  # default
+    $customPackagesJson = ""
+    $customFrontendUrl = ""
     if ($versionChoice -eq "2") {
         $vcSolutionVersion = "edge"
+    }
+    elseif ($versionChoice -eq "3") {
+        $vcSolutionVersion = "custom"
+        while ([string]::IsNullOrWhiteSpace($customPackagesJson)) {
+            $customPackagesJson = Read-Host "Enter path or URL to custom package manifest (required)"
+        }
+        $customFrontendUrl = Read-Host "Enter custom frontend ZIP URL (leave empty to use the latest vc-frontend GitHub release)"
     }
 
     Write-Host "Using version: $vcSolutionVersion" -ForegroundColor Green
@@ -175,7 +185,14 @@ if ($proceed -eq "" -or $proceed -eq "y" -or $proceed -eq "Y") {
         Write-Host "Sample data will be installed." -ForegroundColor Green
     }
 
-    Invoke-Expression "./$targetFolder/build-VC-solution.ps1 -vcSolutionVersion $vcSolutionVersion -skipSampleData `$$skipSampleData"
+    $buildCmd = "./$targetFolder/build-VC-solution.ps1 -vcSolutionVersion $vcSolutionVersion -skipSampleData `$$skipSampleData"
+    if ($vcSolutionVersion -eq "custom") {
+        $buildCmd += " -customPackagesJson '$customPackagesJson'"
+        if (-not [string]::IsNullOrWhiteSpace($customFrontendUrl)) {
+            $buildCmd += " -customFrontendUrl '$customFrontendUrl'"
+        }
+    }
+    Invoke-Expression $buildCmd
 }
 else {
     Write-Host "Build process skipped. You can run it manually later using: ./$targetFolder/build-VC-solution.ps1" -ForegroundColor Yellow
