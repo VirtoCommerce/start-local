@@ -65,6 +65,26 @@ if ($vcSolutionVersion -eq "custom") {
         }
         Copy-Item -Path $resolvedSource -Destination $customPackagesJsonPath -Force
     }
+
+    # Verify the manifest is well-formed JSON and has the required fields
+    try {
+        $manifest = Get-Content -Raw -Path $customPackagesJsonPath | ConvertFrom-Json -ErrorAction Stop
+    }
+    catch {
+        Write-Host "Error: custom package manifest at '$customPackagesJsonPath' is not valid JSON: $($_.Exception.Message)" -ForegroundColor Red
+        exit 1
+    }
+    if (-not $manifest.PlatformVersion) {
+        Write-Host "Error: custom package manifest is missing required field 'PlatformVersion'." -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "Custom manifest verified: PlatformVersion = $($manifest.PlatformVersion)" -ForegroundColor Green
+    try {
+        [void][System.Version]::Parse(($manifest.PlatformVersion -split '-', 2)[0])
+    }
+    catch {
+        Write-Host "Warning: PlatformVersion '$($manifest.PlatformVersion)' may not be parseable by vc-build (System.Version expects numeric major.minor[.build[.revision]] before any prerelease suffix)." -ForegroundColor Yellow
+    }
 }
 
 if ($vcSolutionVersion -eq "latest-stable") {
