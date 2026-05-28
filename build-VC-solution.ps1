@@ -33,6 +33,8 @@ else {
         Write-Host "Error: -customPackagesJson is required when -vcSolutionVersion is 'custom'." -ForegroundColor Red
         exit 1
     }
+    # Only prompts on direct CLI invocation. VirtoLocal_create_local_files.ps1 always
+    # passes -customFrontendUrl (possibly empty), so ContainsKey() is true and this is skipped.
     if ([string]::IsNullOrWhiteSpace($customFrontendUrl) -and -not $PSBoundParameters.ContainsKey('customFrontendUrl')) {
         $customFrontendUrl = Read-Host "Enter custom frontend ZIP URL (leave empty to use the latest vc-frontend GitHub release)"
     }
@@ -47,13 +49,19 @@ else {
 
 # build backend
 $backendDir = Join-Path $targetFolder "backend"
+$customPackagesJsonPath = Join-Path $backendDir "custom-packages.json"
 New-Folder $backendDir
 
 if ($vcSolutionVersion -eq "custom") {
-    $customPackagesJsonPath = Join-Path $backendDir "custom-packages.json"
     if ($customPackagesJson -match '^https?://') {
         Write-Host "Downloading custom package manifest from $customPackagesJson..." -ForegroundColor Yellow
-        Invoke-WebRequest -Uri $customPackagesJson -OutFile $customPackagesJsonPath
+        try {
+            Invoke-WebRequest -Uri $customPackagesJson -OutFile $customPackagesJsonPath -ErrorAction Stop
+        }
+        catch {
+            Write-Host "Error: failed to download custom package manifest from '$customPackagesJson': $($_.Exception.Message)" -ForegroundColor Red
+            exit 1
+        }
     }
     else {
         try {

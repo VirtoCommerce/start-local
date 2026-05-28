@@ -185,11 +185,15 @@ if ($proceed -eq "" -or $proceed -eq "y" -or $proceed -eq "Y") {
         Write-Host "Sample data will be installed." -ForegroundColor Green
     }
 
-    $buildCmd = "./$targetFolder/build-VC-solution.ps1 -vcSolutionVersion $vcSolutionVersion -skipSampleData `$$skipSampleData"
-    if ($vcSolutionVersion -eq "custom") {
-        $buildCmd += " -customPackagesJson '$customPackagesJson' -customFrontendUrl '$customFrontendUrl'"
+    $buildArgs = @{
+        vcSolutionVersion = $vcSolutionVersion
+        skipSampleData    = $skipSampleData
     }
-    Invoke-Expression $buildCmd
+    if ($vcSolutionVersion -eq "custom") {
+        $buildArgs.customPackagesJson = $customPackagesJson
+        $buildArgs.customFrontendUrl  = $customFrontendUrl
+    }
+    & "./$targetFolder/build-VC-solution.ps1" @buildArgs
 }
 else {
     Write-Host "Build process skipped. You can run it manually later using: ./$targetFolder/build-VC-solution.ps1" -ForegroundColor Yellow

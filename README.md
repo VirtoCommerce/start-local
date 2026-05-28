@@ -75,7 +75,7 @@ The following files and folders will be created:
 
 By default `build-VC-solution` script is executed automatically after the files are created and `start-VC-solution` script is executed automatically after the build is complete. However, the execution can be skipped.
 
-You have two options for installing Virto Commerce: using the latest stable release or the edge release. Learn more about our release strategy by [following this link](https://docs.virtocommerce.org/platform/developer-guide/Updating-Virto-Commerce-Based-Project/release-strategy-overview/).
+You have three options for installing Virto Commerce: the latest stable release, the edge release, or a user-supplied custom package manifest. Learn more about our release strategy by [following this link](https://docs.virtocommerce.org/platform/developer-guide/Updating-Virto-Commerce-Based-Project/release-strategy-overview/).
 
 ### Endpoints
 After running the script:
