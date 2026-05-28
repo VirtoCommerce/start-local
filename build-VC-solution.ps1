@@ -33,7 +33,7 @@ else {
         Write-Host "Error: -customPackagesJson is required when -vcSolutionVersion is 'custom'." -ForegroundColor Red
         exit 1
     }
-    if ([string]::IsNullOrWhiteSpace($customFrontendUrl)) {
+    if ([string]::IsNullOrWhiteSpace($customFrontendUrl) -and -not $PSBoundParameters.ContainsKey('customFrontendUrl')) {
         $customFrontendUrl = Read-Host "Enter custom frontend ZIP URL (leave empty to use the latest vc-frontend GitHub release)"
     }
     if ([string]::IsNullOrWhiteSpace($customFrontendUrl)) {

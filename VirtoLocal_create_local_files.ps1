@@ -187,10 +187,7 @@ if ($proceed -eq "" -or $proceed -eq "y" -or $proceed -eq "Y") {
 
     $buildCmd = "./$targetFolder/build-VC-solution.ps1 -vcSolutionVersion $vcSolutionVersion -skipSampleData `$$skipSampleData"
     if ($vcSolutionVersion -eq "custom") {
-        $buildCmd += " -customPackagesJson '$customPackagesJson'"
-        if (-not [string]::IsNullOrWhiteSpace($customFrontendUrl)) {
-            $buildCmd += " -customFrontendUrl '$customFrontendUrl'"
-        }
+        $buildCmd += " -customPackagesJson '$customPackagesJson' -customFrontendUrl '$customFrontendUrl'"
     }
     Invoke-Expression $buildCmd
 }
