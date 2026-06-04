@@ -1,7 +1,9 @@
 param (
     [string]$targetFolder = "VirtoLocal",
-    [ValidateSet("latest-stable", "edge")]
+    [ValidateSet("latest-stable", "edge", "custom")]
     [string]$vcSolutionVersion = "latest-stable",
+    [string]$customPackagesJson,
+    [string]$customFrontendUrl,
     [bool]$skipSampleData = $false
 )
 
@@ -21,15 +23,78 @@ if ($vcSolutionVersion -eq "latest-stable") {
     $packagesJsonUrl = "https://raw.githubusercontent.com/VirtoCommerce/vc-modules/refs/heads/master/bundles/$vcModulesBundle/package.json"
     $frontendZipUrl = (Invoke-WebRequest -Uri $packagesJsonUrl).Content | ConvertFrom-Json | Select-Object -ExpandProperty "ThemeB2BVue"
 }
-else {
+elseif ($vcSolutionVersion -eq "edge") {
     $vcModulesBundle = "edge"
     $releaseInfo = Invoke-RestMethod -Uri "https://api.github.com/repos/VirtoCommerce/vc-frontend/releases/latest"
     $frontendZipUrl = $releaseInfo.assets.browser_download_url
 }
+else {
+    if ([string]::IsNullOrWhiteSpace($customPackagesJson)) {
+        Write-Host "Error: -customPackagesJson is required when -vcSolutionVersion is 'custom'." -ForegroundColor Red
+        exit 1
+    }
+    # Only prompts on direct CLI invocation. VirtoLocal_create_local_files.ps1 always
+    # passes -customFrontendUrl (possibly empty), so ContainsKey() is true and this is skipped.
+    if ([string]::IsNullOrWhiteSpace($customFrontendUrl) -and -not $PSBoundParameters.ContainsKey('customFrontendUrl')) {
+        $customFrontendUrl = Read-Host "Enter custom frontend ZIP URL (leave empty to use the latest vc-frontend GitHub release)"
+    }
+    if ([string]::IsNullOrWhiteSpace($customFrontendUrl)) {
+        $releaseInfo = Invoke-RestMethod -Uri "https://api.github.com/repos/VirtoCommerce/vc-frontend/releases/latest"
+        $frontendZipUrl = $releaseInfo.assets.browser_download_url
+    }
+    else {
+        $frontendZipUrl = $customFrontendUrl
+    }
+}
 
 # build backend
 $backendDir = Join-Path $targetFolder "backend"
+$customPackagesJsonPath = Join-Path $backendDir "custom-packages.json"
 New-Folder $backendDir
+
+if ($vcSolutionVersion -eq "custom") {
+    if ($customPackagesJson -match '^https?://') {
+        Write-Host "Downloading custom package manifest from $customPackagesJson..." -ForegroundColor Yellow
+        try {
+            Invoke-WebRequest -Uri $customPackagesJson -OutFile $customPackagesJsonPath -ErrorAction Stop
+        }
+        catch {
+            Write-Host "Error: failed to download custom package manifest from '$customPackagesJson': $($_.Exception.Message)" -ForegroundColor Red
+            exit 1
+        }
+    }
+    else {
+        try {
+            $resolvedSource = (Resolve-Path -Path $customPackagesJson -ErrorAction Stop).Path
+        }
+        catch {
+            Write-Host "Error: custom package manifest not found at '$customPackagesJson'." -ForegroundColor Red
+            exit 1
+        }
+        Copy-Item -Path $resolvedSource -Destination $customPackagesJsonPath -Force
+    }
+
+    # Verify the manifest is well-formed JSON and has the required fields
+    try {
+        $manifest = Get-Content -Raw -Path $customPackagesJsonPath | ConvertFrom-Json -ErrorAction Stop
+    }
+    catch {
+        Write-Host "Error: custom package manifest at '$customPackagesJsonPath' is not valid JSON: $($_.Exception.Message)" -ForegroundColor Red
+        exit 1
+    }
+    if (-not $manifest.PlatformVersion) {
+        Write-Host "Error: custom package manifest is missing required field 'PlatformVersion'." -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "Custom manifest verified: PlatformVersion = $($manifest.PlatformVersion)" -ForegroundColor Green
+    try {
+        [void][System.Version]::Parse(($manifest.PlatformVersion -split '-', 2)[0])
+    }
+    catch {
+        Write-Host "Warning: PlatformVersion '$($manifest.PlatformVersion)' may not be parseable by vc-build (System.Version expects numeric major.minor[.build[.revision]] before any prerelease suffix)." -ForegroundColor Yellow
+    }
+}
+
 if ($vcSolutionVersion -eq "latest-stable") {
     # build latest stable
     $stablePackagesJsonUrl = "https://raw.githubusercontent.com/VirtoCommerce/vc-modules/refs/heads/master/bundles/$vcModulesBundle/package.json"
@@ -49,10 +114,25 @@ if ($vcSolutionVersion -eq "latest-stable") {
     }
     Write-Host "... Backend built successfully" -ForegroundColor Green
 }
-else {
+elseif ($vcSolutionVersion -eq "edge") {
     # build latest dev
     Write-Host "Building backend..." -ForegroundColor Yellow
     vc-build install -Edge `
+        --probing-path $backendDir/publish/app_data/modules `
+        --discovery-path $backendDir/publish/modules `
+        --root $backendDir/publish `
+        --skip-dependency-solving
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Error: Failed to build backend" -ForegroundColor Red
+        Write-Host "Build command failed with exit code: $LASTEXITCODE" -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "... Backend built successfully" -ForegroundColor Green
+}
+else {
+    # build with custom package manifest
+    Write-Host "Building backend with custom package manifest..." -ForegroundColor Yellow
+    vc-build install --package-manifest-path $customPackagesJsonPath `
         --probing-path $backendDir/publish/app_data/modules `
         --discovery-path $backendDir/publish/modules `
         --root $backendDir/publish `
