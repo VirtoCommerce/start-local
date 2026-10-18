@@ -104,3 +104,11 @@ Sources: `actions/runner-images` image READMEs (Ubuntu 24.04 20261012, Windows 2
 On every runner, PowerShell 7.6.6 and Pester 5.9.0 were present and `Import-Module Pester -MinimumVersion 5.0` loaded 5.9.0. .NET SDK 10.0.401 is on Ubuntu and Windows. `docker compose config` worked without a daemon on Ubuntu and Windows (Compose v2.40.3 on Windows). On macOS the Compose plugin comes from Homebrew (5.5.1), which installed on both architectures.
 
 Untested: on Windows, the probe ran the Docker CLI inside WSL. The start-local scripts run in Windows `pwsh` with Windows paths, so they would need the Windows Docker CLI pointed at the WSL daemon (for example `DOCKER_HOST=tcp://localhost:2375`).
+
+### 2026-10-18: two open questions answered (source)
+
+- **vc-build into an external `modules` folder** (spec §7.3): `vc-build install` takes `-DiscoveryPath` and `-ProbingPath`. vc-build's `docs/targets.md` shows `vc-build install -PackageManifestPath some_directory/vc-package.json -DiscoveryPath ../modules -ProbingPath platform_dir/app_data/modules -SkipDependencySolving`, and `Build.PackageManager.cs` uses `DiscoveryPath` ahead of the `appsettings.json` value.
+- **Fingerprint format** (E11):
+  - The ElasticSearch8 module passes `CertificateFingerprint` unchanged to Elastic.Transport (`ElasticSearch8Provider.cs`: `settings.CertificateFingerprint(...)`).
+  - Elastic.Transport `CertificateHelpers.ComparableFingerprint` removes colons or hyphens, and `ValidateCertificateFingerprint` compares with `OrdinalIgnoreCase`, so lowercase hex without colons, the colon form and the hyphen form all work.
+  - `HttpRequestInvoker` accepts a match on **any certificate in the chain** before it checks the leaf, so the CA's fingerprint is accepted when the chain .NET builds contains the CA. Whether it does for a CA that is in no trust store and isn't sent by Elasticsearch is not verified.

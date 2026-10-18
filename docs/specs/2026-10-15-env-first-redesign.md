@@ -245,7 +245,7 @@ The user or the IDE builds the source parts. start only runs them, and fails fas
 
 A `*.Web` entry becomes a bind mount at `/opt/virtocommerce/platform/modules/<module id>`, where the module id comes from `module.manifest`, replacing the installed copy of that module. This is the platform docs' "link the Module Web directory" workflow.
 
-A `modules` folder is bind-mounted at `/opt/virtocommerce/platform/modules` itself, replacing the image's modules. build then has vc-build install the package manifest's modules into that folder instead of the image (the vc-build option is to be verified).
+A `modules` folder is bind-mounted at `/opt/virtocommerce/platform/modules` itself, replacing the image's modules. build then has vc-build install the package manifest's modules into that folder instead of the image, through `vc-build install -DiscoveryPath <modules folder>` (follow-up *Amendments*).
 
 ## 8. Scripts and parameters
 
@@ -323,7 +323,7 @@ Further rules:
   - The setup container writes the CA's SHA-256 to `ca/ca.fingerprint` in the certificates volume. The ES image has no `openssl`, so it uses `sed '/-----/d' ca.crt | base64 -d | sha256sum`, which gives the same value as `openssl x509 -fingerprint -sha256` (verified, ES 9.5.5).
   - The Docker platform's entrypoint, which start-local owns (D5), exports `Search__${SEARCH_PROVIDER}__CertificateFingerprint` from that file, then starts `dotnet`. A plain `docker compose up` therefore works end to end.
   - For a platform run from source, start copies the file from the volume into the platform's settings file.
-  - The fingerprint format the module expects (lowercase hex without colons, or the colon form) is to be confirmed when implementing.
+  - The transport accepts the fingerprint in any case, with or without colons, and matches it against every certificate in the chain, the CA included (follow-up *Amendments*).
 - **Search provider (D8).** `SEARCH_PROVIDER` in `.env`, default `ElasticSearch8`, which also works with Elasticsearch 9 servers. Neither bundle ships ES9 (§9).
 - **Trust (E5).** The scripts never install it. When the dev cert is untrusted, start prints two routes: `dotnet dev-certs https --trust` (Windows, macOS; Ubuntu and Fedora with .NET 9+ and `SSL_CERT_DIR` set), or copying the export into the system store (`/usr/local/share/ca-certificates` + `update-ca-certificates`) (§11). The setup CA is printed with the same instructions.
 - **HTTP mode (E1, E12).** `-allowInsecureHttp` removes every `.https.yml` overlay from `COMPOSE_FILE` (E13), which leaves today's behavior; the platform file keeps `VirtoCommerce:AllowInsecureHttp=true`. The stack is never served over both at once.
@@ -386,8 +386,7 @@ start-local has no tests or CI today. CI runs on GitHub-hosted runners (G1, foll
 Every design choice is decided; only C1's saving of a generated admin password is assumed rather than asked. These facts are still unverified:
 
 - Compose v2.18.0 support for `${COMPOSE_PROJECT_NAME}` and nested defaults (D3; verified on v5.5.1).
-- The vc-build option that installs into an external `modules` folder (§7.3).
-- The fingerprint format the search module expects: lowercase hex without colons, or the colon form (E11).
+- That the chain .NET builds for the Elasticsearch cert contains the setup CA, so the CA fingerprint matches (E11).
 - The working directory that Rider, VS Code and Visual Studio use for a platform launch, which must be the content root for the settings file (H5).
 - That the platform exits when the database or Elasticsearch isn't ready after a daemon restart, so its restart policy retries it (D10).
 - The Windows Docker CLI and Compose reaching the Docker daemon inside WSL2 on the Windows runner (G1).

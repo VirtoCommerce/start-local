@@ -138,8 +138,7 @@ Platform, modules and frontend can each run from Docker or from source, and the 
 These are asked in order; earlier answers may change later questions.
 
 - **B1:** the shim lifetime, left undecided on purpose.
-- **E11:** the fingerprint format the module accepts (lowercase hex without colons, as written, or the colon form) is to be confirmed when implementing.
-- **vc-build installing into an external `modules` folder** (H2) for the Docker platform: the vc-build option that targets it is not verified.
+- **E11:** the transport matches the fingerprint against every certificate in the chain .NET builds; that this chain contains the setup CA is not verified.
 - **Compose v2.18.0** support for `${COMPOSE_PROJECT_NAME}` interpolation and nested defaults (D3) is not verified.
 - **H5:** the working directory Rider, VS Code and Visual Studio use for a platform launch is not checked; the settings file is found only when it is the content root.
 - **D10:** after a daemon restart, Docker starts containers without `depends_on` ordering. The platform must exit when the database or Elasticsearch isn't ready yet, so that its restart policy retries it; not verified.
