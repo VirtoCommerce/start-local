@@ -363,16 +363,15 @@ start-local has no tests or CI today. CI runs on GitHub-hosted runners (G1, foll
 |------|:-:|:-:|:-:|
 | Unit (Pester 5) | ✓ | ✓ | ✓ |
 | Compose config | ✓ | ✓ | ✓ (Compose installed by the workflow) |
-| Smoke | ✓ | only if the WSL2 probe passes | ✗ (no Linux containers on arm64 runners) |
+| Smoke | ✓ (native) | ✓ (Docker inside WSL2) | ✓ on `macos-15-intel` (colima); ✗ on arm64 |
 
-- **Runners.** The Ubuntu runner is the only hosted one with Linux containers. The Windows runner's Docker runs Windows containers only, and macOS arm64 runners have no nested virtualization. The smoke job uses PostgreSQL and leaves out Kibana, to fit the runner's memory.
+- **Runners** (probe run, follow-up *Amendments*). The Windows runner's own Docker daemon runs only Windows containers, so the smoke job installs a WSL2 distribution with Docker in it. It takes about 2 minutes, and about 1–2% of WSL2 jobs hang (runner-images#14938), so the job has a timeout. macOS arm64 runners can't start a VM, so the macOS smoke job uses `macos-15-intel` with colima; setup takes about 7 minutes. The smoke job uses PostgreSQL and leaves out Kibana, to fit the runners' memory.
 
 ## 13. Delivery
 
 1. Cut `release/1.0` from `dev`, tag `v1.0.0`, and publish the GitHub Release with the current installer as its asset.
-2. Run `.github/workflows/runner-probe.yml` (G1), to settle the Windows smoke lane. It runs on the push that adds or changes it.
-3. Open one PR against `dev`, or two if it grows too large. Decide once the size is known (F4).
-4. Release `v2.0.0`. The README one-liner switches to the release-asset URL in the same release.
+2. Open one PR against `dev`, or two if it grows too large. Decide once the size is known (F4).
+3. Release `v2.0.0`. The README one-liner switches to the release-asset URL in the same release.
 
 ## 14. Trade-offs
 
@@ -391,4 +390,4 @@ Every design choice is decided; only C1's saving of a generated admin password i
 - The fingerprint format the search module expects: lowercase hex without colons, or the colon form (E11).
 - The working directory that Rider, VS Code and Visual Studio use for a platform launch, which must be the content root for the settings file (H5).
 - That the platform exits when the database or Elasticsearch isn't ready after a daemon restart, so its restart policy retries it (D10).
-- Docker in WSL2 on the Windows runner (G1).
+- The Windows Docker CLI and Compose reaching the Docker daemon inside WSL2 on the Windows runner (G1).

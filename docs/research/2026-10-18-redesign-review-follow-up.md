@@ -87,3 +87,20 @@ Sources: `actions/runner-images` image READMEs (Ubuntu 24.04 20261012, Windows 2
 - `macos-latest` now maps to macOS 26 arm64. `macos-13` (Intel) was retired on 2025-12-04; `macos-15-intel` remains until Fall 2027 and has no Docker either. colima might work there, but runs are reported as very slow. Untested.
 - Private-repo Ubuntu runners have 2 vCPU and 8 GB, which is tight for Elasticsearch, Kibana, the platform and SQL Server together.
 - `docker compose config` needs no daemon (live: exit 0 with `DOCKER_HOST` pointing at a missing socket), but the runners' Compose 2.38 and 2.40 are older than the v5.6.0 tested here.
+
+## Amendments
+
+### 2026-10-18: runner probe (live)
+
+[runner-probe run 39082797326](https://github.com/asvishnyakov/start-local/actions/runs/39082797326) on the user's fork, commit `7d896ca`. Every probe step ran with `continue-on-error`, so the results below come from the job logs, not from the step conclusions, which all read `success`.
+
+| Runner (image) | Linux containers | Evidence |
+|---|---|---|
+| `ubuntu-24.04` | **Yes, native** | `docker run --rm --platform linux/amd64 alpine uname -a` printed `Linux … x86_64` |
+| `windows-2025` (`windows-2025-vs2026` 20261007.264.1) | **Yes, through WSL2**; not on the native daemon | Native: `docker info` gave `windows/x86_64`, and the alpine run failed with `no matching manifest for linux/amd64`. WSL2 had no distribution installed. `wsl --install -d Ubuntu-24.04 --no-launch`, then `apt-get install docker.io docker-compose-v2` and `dockerd` inside it, gave `OSType` `linux` and ran `hello-world` (amd64). The step took about 1 min 45 s |
+| `macos-15` (arm64) | **No** | Homebrew installed colima 0.10.3, Docker 29.8.0 and Compose 5.5.1, but `colima start` failed at VM creation with the `vz` driver: `error starting vm: error at 'creating and starting': exit status 1` |
+| `macos-15-intel` | **Yes, through colima** | `colima start --cpu 3 --memory 6` came up; `docker info` gave `linux/x86_64` and `hello-world` ran. The job took 7 min, most of it Homebrew and the colima VM |
+
+On every runner, PowerShell 7.6.6 and Pester 5.9.0 were present and `Import-Module Pester -MinimumVersion 5.0` loaded 5.9.0. .NET SDK 10.0.401 is on Ubuntu and Windows. `docker compose config` worked without a daemon on Ubuntu and Windows (Compose v2.40.3 on Windows). On macOS the Compose plugin comes from Homebrew (5.5.1), which installed on both architectures.
+
+Untested: on Windows, the probe ran the Docker CLI inside WSL. The start-local scripts run in Windows `pwsh` with Windows paths, so they would need the Windows Docker CLI pointed at the WSL daemon (for example `DOCKER_HOST=tcp://localhost:2375`).

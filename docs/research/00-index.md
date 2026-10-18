@@ -19,4 +19,4 @@
 ## Notes & Caveats
 
 - **redesign-fact-check** was tested on one machine (Ubuntu 24.04, Docker Desktop, Compose v5.5.1). Windows behavior, especially directory junctions and `COMPOSE_PATH_SEPARATOR`, is inferred from docs, not tested.
-- **redesign-review-follow-up** describes GitHub runners from their image READMEs only; no probe workflow had run on its date. IDE working directories for the per-folder settings file are unchecked.
+- **redesign-review-follow-up** §5 describes GitHub runners from their image READMEs; its *Amendments* hold the live probe results. IDE working directories for the per-folder settings file are unchecked.

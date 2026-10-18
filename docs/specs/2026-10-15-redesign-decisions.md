@@ -122,7 +122,7 @@ Platform, modules and frontend can each run from Docker or from source, and the 
 
 | # | Decision |
 |---|----------|
-| G1 | CI runs on GitHub-hosted runners in three tiers ([follow-up §5](../research/2026-10-18-redesign-review-follow-up.md#5-github-hosted-runners)). Pester unit tests and `docker compose config` run on Ubuntu, Windows and macOS. The full-stack smoke test runs on Ubuntu, the only hosted runner with Linux containers. A Windows smoke lane through Docker in WSL2 is added only if a probe run shows it works; macOS arm64 runners can't run Linux containers at all. |
+| G1 | CI runs on GitHub-hosted runners in three tiers ([follow-up §5 and *Amendments*](../research/2026-10-18-redesign-review-follow-up.md#amendments)). Pester unit tests and `docker compose config` run on Ubuntu, Windows and macOS. The full-stack smoke test runs where hosted runners can run Linux containers, as the probe showed: Ubuntu natively, Windows through Docker inside a WSL2 distribution, and macOS on the `macos-15-intel` runner through colima. macOS arm64 runners can't run Linux containers. The macOS smoke lane ends when GitHub retires its last Intel image (planned for Fall 2027). |
 
 ## Compatibility surface
 
@@ -143,4 +143,4 @@ These are asked in order; earlier answers may change later questions.
 - **Compose v2.18.0** support for `${COMPOSE_PROJECT_NAME}` interpolation and nested defaults (D3) is not verified.
 - **H5:** the working directory Rider, VS Code and Visual Studio use for a platform launch is not checked; the settings file is found only when it is the content root.
 - **D10:** after a daemon restart, Docker starts containers without `depends_on` ordering. The platform must exit when the database or Elasticsearch isn't ready yet, so that its restart policy retries it; not verified.
-- **G1:** whether Docker inside WSL2 runs Linux containers on the Windows runner, pending a probe run.
+- **G1:** on the Windows runner, the Windows Docker CLI and Compose have to reach the Docker daemon inside WSL2; that connection is not tested yet.
