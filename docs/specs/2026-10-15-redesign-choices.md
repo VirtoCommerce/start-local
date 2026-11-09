@@ -1,6 +1,6 @@
 # start-local redesign: choice prompts and spec review
 
-Status: **review, point-in-time.** The prompt record (§3) is a verbatim, append-only record of the multiple-choice prompts the user answered while the redesign was designed. The review (§2) compares those answers against the [decision log](2026-10-15-redesign-decisions.md) and the [spec](2026-10-15-env-first-redesign.md) as they stood on 2026-10-15. Apply accepted findings to those two documents; record outcomes here in an *Outcome* section, original intact.
+Status: **review, point-in-time.** The prompt record (§3) is a verbatim, append-only record of the multiple-choice prompts the user answered while the redesign was designed. The review (§2) compares those answers against the [decision log](2026-10-15-redesign-decisions.md) and the [spec](2026-10-15-env-first-redesign-design.md) as they stood on 2026-10-15. Apply accepted findings to those two documents; record outcomes here in an *Outcome* section, original intact.
 
 ## 1. Sources
 

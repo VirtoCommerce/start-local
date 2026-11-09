@@ -1,6 +1,6 @@
 # start-local redesign: decision log
 
-Status: **decided, spec drafted.** These are the decisions behind the [redesign spec](2026-10-15-env-first-redesign.md). Their evidence is in the [fact check](../research/2026-10-15-redesign-fact-check.md) and the [review follow-up](../research/2026-10-18-redesign-review-follow-up.md). This is a living document: update a decision in place when it changes.
+Status: **decided, spec drafted.** These are the decisions behind the [redesign spec](2026-10-15-env-first-redesign-design.md). Their evidence is in the [fact check](../research/2026-10-15-redesign-fact-check.md) and the [review follow-up](../research/2026-10-18-redesign-review-follow-up.md). This is a living document: update a decision in place when it changes.
 
 ## Goal
 

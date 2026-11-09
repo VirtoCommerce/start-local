@@ -1,6 +1,6 @@
 # Fact check for the start-local redesign
 
-Date: 2026-10-15. These facts back the [redesign spec](../specs/2026-10-15-env-first-redesign.md) and its [decision log](../specs/2026-10-15-redesign-decisions.md).
+Date: 2026-10-15. These facts back the [redesign spec](../specs/2026-10-15-env-first-redesign-design.md) and its [decision log](../specs/2026-10-15-redesign-decisions.md).
 
 Each finding has a **verdict** and its evidence. *Live* means tested on this machine: Ubuntu 24.04, PowerShell 7.6.6, .NET SDK 10.0.400, Docker Desktop with Docker 29.8.2 and Compose v5.5.1. Throwaway containers, volumes and files were removed after each test.
 

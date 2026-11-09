@@ -1,6 +1,6 @@
 # Follow-up research for the start-local redesign review
 
-Date: 2026-10-18. These facts back the changes made to the [redesign spec](../specs/2026-10-15-env-first-redesign.md) and its [decision log](../specs/2026-10-15-redesign-decisions.md) after the user's review of 2026-10-18. The [fact check](2026-10-15-redesign-fact-check.md) holds the earlier evidence.
+Date: 2026-10-18. These facts back the changes made to the [redesign spec](../specs/2026-10-15-env-first-redesign-design.md) and its [decision log](../specs/2026-10-15-redesign-decisions.md) after the user's review of 2026-10-18. The [fact check](2026-10-15-redesign-fact-check.md) holds the earlier evidence.
 
 *Live* means tested on this machine: Ubuntu 24.04, .NET SDK 10.0.400, Docker Compose v5.6.0. Throwaway files were removed after each test.
 

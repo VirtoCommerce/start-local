@@ -1,6 +1,8 @@
-# start-local redesign: `.env`-first, release-pinned, HTTPS
+# start-local redesign: `.env`-first, release-pinned, HTTPS — design
 
-Status: **draft**. This document stays living until an implementation plan is drawn against it. Decisions are cited by ID from the [decision log](2026-10-15-redesign-decisions.md). Evidence is cited by section from the [fact check](../research/2026-10-15-redesign-fact-check.md) (§N) and the [review follow-up](../research/2026-10-18-redesign-review-follow-up.md) (follow-up §N).
+**Status:** draft. This document stays living until an implementation plan is drawn against it.
+**Decisions:** cited by ID from the [decision log](2026-10-15-redesign-decisions.md).
+**Evidence:** cited by section from the [fact check](../research/2026-10-15-redesign-fact-check.md) (§N) and the [review follow-up](../research/2026-10-18-redesign-review-follow-up.md) (follow-up §N).
 
 ## 1. Problem
 
@@ -48,8 +50,14 @@ one-liner ─► bootstrap installer ─► resolve release ─► download one 
                      COMPOSE_FILE = which compose files make up the stack
 ```
 
-Rejected alternatives:
-- **Keep the parameter chain and add `-nonInteractive` (V1).** It fixes unattended runs but keeps the forwarding problem.
+Options:
+
+| # | Approach | Verdict |
+|---|----------|---------|
+| 1 | **`.env`-first: one `.env` that Compose reads natively, scripts that do one job, `COMPOSE_FILE` as the stack definition** | ✅ chosen |
+| 2 | Keep the parameter chain and add `-nonInteractive` (V1) | ❌ fixes unattended runs but keeps the forwarding problem |
+
+Rejected sub-decisions within option 1:
 - **A branch per project, as the reference repo does.** Projects need no changes to start-local: they differ only in modules and third-party services, which the package manifest and `.env` already cover.
 - **Compose profiles for optional services.** Rejected in H9 for one mechanism, `COMPOSE_FILE`.
 - **HTTP and HTTPS as alternative copies of each compose file.** Every shared setting would be written twice; HTTPS is an overlay instead (E13).
@@ -59,7 +67,7 @@ Rejected alternatives:
 ### 4.1 Branches and releases
 
 - Development stays on `dev` (A4).
-- `release/1.0` is cut from the current `dev` **before** the redesign merges. It carries the old layout. A saved old installer reaches it with `-branch release/1.0`, and a new user downloads that branch's `VirtoLocal_create_local_files.ps1` and runs it (A5, A10). The raw URL form works for a branch name with a slash (§1).
+- `release/1.0` is cut from the current `dev` **before** the redesign merges. It carries the old layout. It is tagged `v1.0.0`, and its GitHub Release carries the current installer as its asset, since that layout has no `install.ps1`. A saved old installer reaches it with `-branch release/1.0`, and a new user downloads that branch's `VirtoLocal_create_local_files.ps1` and runs it (A5, A10). The raw URL form works for a branch name with a slash (§1).
 - Without `-branch`, a saved old installer still downloads the files whose names survive (`docker-compose*.yml`, `scripts/`), then reaches the old build, start, stop and remove scripts, which on `dev` are only guards. Each guard throws an error that explains `release/1.0`, the new installer and migration (A5).
 - Every release is a `release/X.Y` branch plus a `vX.Y.Z` tag and a GitHub Release (A1). The release attaches `install.ps1` as an asset (A8).
 - The old README one-liner keeps working: `dev`'s `VirtoLocal_create_local_files.ps1` is a forwarder that downloads the latest release's `install.ps1` next to itself and calls `./install.ps1` with the same arguments (A9):
@@ -367,11 +375,9 @@ start-local has no tests or CI today. CI runs on GitHub-hosted runners (G1, foll
 
 - **Runners** (probe run, follow-up *Amendments*). The Windows runner's own Docker daemon runs only Windows containers, so the smoke job installs a WSL2 distribution with Docker in it. It takes about 2 minutes, and about 1–2% of WSL2 jobs hang (runner-images#14938), so the job has a timeout. macOS arm64 runners can't start a VM, so the macOS smoke job uses `macos-15-intel` with colima; setup takes about 7 minutes. The smoke job uses PostgreSQL and leaves out Kibana, to fit the runners' memory.
 
-## 13. Delivery
+## 13. Left to the plan
 
-1. Cut `release/1.0` from `dev`, tag `v1.0.0`, and publish the GitHub Release with the current installer as its asset.
-2. Open one PR against `dev`, or two if it grows too large. Decide once the size is known (F4).
-3. Release `v2.0.0`. The README one-liner switches to the release-asset URL in the same release.
+- Release and PR order: cutting and tagging `release/1.0`, one PR against `dev` or two (F4), and switching the README one-liner within the `v2.0.0` release.
 
 ## 14. Trade-offs
 
@@ -383,7 +389,7 @@ start-local has no tests or CI today. CI runs on GitHub-hosted runners (G1, foll
 
 ## 15. To verify while implementing
 
-Every design choice is decided; only C1's saving of a generated admin password is assumed rather than asked. These facts are still unverified:
+Every design choice is decided except the lifetime of obsolete parameters, left open on purpose (B1); only C1's saving of a generated admin password is assumed rather than asked. These facts are still unverified:
 
 - Compose v2.18.0 support for `${COMPOSE_PROJECT_NAME}` and nested defaults (D3; verified on v5.5.1).
 - That the chain .NET builds for the Elasticsearch cert contains the setup CA, so the CA fingerprint matches (E11).
