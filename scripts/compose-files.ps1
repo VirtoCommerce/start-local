@@ -299,3 +299,62 @@ function Get-SolutionImageNames {
 
     , [string[]]@("vc-platform:$ProjectName-latest", "vc-frontend:$ProjectName-latest")
 }
+
+function Test-RemovableFolder {
+    # $false for a folder with a .git entry (a checkout, or a worktree whose .git is a file): the repository root is
+    # itself a valid solution folder, and remove must never delete it (P13).
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param(
+        [Parameter(Mandatory, Position = 0)][string]$Folder
+    )
+
+    -not (Test-Path -LiteralPath (Join-Path $Folder '.git'))
+}
+
+function Get-RemovalPlan {
+    # What remove.ps1 does to a solution folder: the `docker compose` arguments, the volumes and images to delete
+    # by name, and the paths to delete. The volume prefix and image tag follow the compose files:
+    # VOLUME_PREFIX, else the project name (COMPOSE_PROJECT_NAME, else the folder name).
+    [CmdletBinding()]
+    [OutputType([pscustomobject])]
+    param(
+        [Parameter(Mandatory, Position = 0)][string]$Folder,
+        [Parameter(Mandatory, Position = 1)][bool]$KeepData
+    )
+
+    $envPath = Join-Path $Folder '.env'
+    $volumePrefix = $null
+    $projectName = $null
+    if (Test-Path -LiteralPath $envPath -PathType Leaf) {
+        $document = Read-EnvFile -Path $envPath
+        $volumePrefix = Get-EnvValue -Document $document -Key 'VOLUME_PREFIX'
+        $projectName = Get-EnvValue -Document $document -Key 'COMPOSE_PROJECT_NAME'
+    }
+    if ([string]::IsNullOrWhiteSpace($projectName)) {
+        $projectName = Get-ComposeProjectName -FolderPath $Folder
+    }
+    if ([string]::IsNullOrWhiteSpace($volumePrefix)) {
+        $volumePrefix = $projectName
+    }
+
+    if ($KeepData) {
+        $downArgs = [string[]]@('down', '--remove-orphans')
+        $volumes = [string[]]@()
+        $deletePaths = [string[]]@(Get-ChildItem -LiteralPath $Folder -Force |
+                Where-Object { $_.Name -ne '.env' } |
+                ForEach-Object { $_.FullName })
+    }
+    else {
+        $downArgs = [string[]]@('down', '-v', '--remove-orphans')
+        $volumes = Get-SolutionVolumeNames -Prefix $volumePrefix
+        $deletePaths = [string[]]@($Folder)
+    }
+
+    [pscustomobject]@{
+        DownArgs    = $downArgs
+        Volumes     = $volumes
+        Images      = Get-SolutionImageNames -ProjectName $projectName
+        DeletePaths = $deletePaths
+    }
+}
