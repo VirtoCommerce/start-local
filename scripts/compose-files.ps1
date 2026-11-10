@@ -312,6 +312,39 @@ function Test-RemovableFolder {
     -not (Test-Path -LiteralPath (Join-Path $Folder '.git'))
 }
 
+function Get-SolutionProjectName {
+    # The Compose project name of a solution folder: COMPOSE_PROJECT_NAME from the .env document, else the
+    # folder's default. The document may be $null (no .env yet).
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Position = 0)][AllowNull()][psobject]$Document,
+        [Parameter(Mandatory, Position = 1)][string]$SolutionFolder
+    )
+
+    $projectName = if ($Document) { Get-EnvValue -Document $Document -Key 'COMPOSE_PROJECT_NAME' }
+    if ([string]::IsNullOrWhiteSpace($projectName)) {
+        $projectName = Get-ComposeProjectName -FolderPath $SolutionFolder
+    }
+    $projectName
+}
+
+function Get-VolumePrefix {
+    # The prefix of the solution's named volumes, as the compose files spell it: ${VOLUME_PREFIX:-${COMPOSE_PROJECT_NAME}}.
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Position = 0)][AllowNull()][psobject]$Document,
+        [Parameter(Mandatory, Position = 1)][string]$SolutionFolder
+    )
+
+    $volumePrefix = if ($Document) { Get-EnvValue -Document $Document -Key 'VOLUME_PREFIX' }
+    if ([string]::IsNullOrWhiteSpace($volumePrefix)) {
+        $volumePrefix = Get-SolutionProjectName -Document $Document -SolutionFolder $SolutionFolder
+    }
+    $volumePrefix
+}
+
 function Get-RemovalPlan {
     # What remove.ps1 does to a solution folder: the `docker compose` arguments, the volumes and images to delete
     # by name, and the paths to delete. The volume prefix and image tag follow the compose files:
@@ -324,19 +357,9 @@ function Get-RemovalPlan {
     )
 
     $envPath = Join-Path $Folder '.env'
-    $volumePrefix = $null
-    $projectName = $null
-    if (Test-Path -LiteralPath $envPath -PathType Leaf) {
-        $document = Read-EnvFile -Path $envPath
-        $volumePrefix = Get-EnvValue -Document $document -Key 'VOLUME_PREFIX'
-        $projectName = Get-EnvValue -Document $document -Key 'COMPOSE_PROJECT_NAME'
-    }
-    if ([string]::IsNullOrWhiteSpace($projectName)) {
-        $projectName = Get-ComposeProjectName -FolderPath $Folder
-    }
-    if ([string]::IsNullOrWhiteSpace($volumePrefix)) {
-        $volumePrefix = $projectName
-    }
+    $document = if (Test-Path -LiteralPath $envPath -PathType Leaf) { Read-EnvFile -Path $envPath }
+    $projectName = Get-SolutionProjectName -Document $document -SolutionFolder $Folder
+    $volumePrefix = Get-VolumePrefix -Document $document -SolutionFolder $Folder
 
     if ($KeepData) {
         $downArgs = [string[]]@('down', '--remove-orphans')

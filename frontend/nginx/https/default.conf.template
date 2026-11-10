@@ -1,0 +1,11 @@
+server {
+    listen       8080 ssl;
+    server_name  localhost;
+
+    # The development certificate from the certificates volume. Proxying to the platform does not verify
+    # the platform's certificate: the internal hop is on the compose network.
+    ssl_certificate     /certs/dev/localhost.pem;
+    ssl_certificate_key /certs/dev/localhost.key;
+
+    include /etc/nginx/conf.d/snippets/storefront.conf;
+}

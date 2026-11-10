@@ -225,6 +225,24 @@ Describe 'ComposeFiles' -Tag 'Unit' {
         { Get-ComposeProjectName -FolderPath '/home/user/..' } | Should -Throw -ExceptionType ([System.ArgumentException])
     }
 
+    It 'Get-VolumePrefix and Get-SolutionProjectName use VOLUME_PREFIX, then COMPOSE_PROJECT_NAME, then the folder name' -ForEach @(
+        @{ Lines = @('VOLUME_PREFIX=virto', 'COMPOSE_PROJECT_NAME=other'); Prefix = 'virto'; Project = 'other' }
+        @{ Lines = @('VOLUME_PREFIX=', 'COMPOSE_PROJECT_NAME=other'); Prefix = 'other'; Project = 'other' }
+        @{ Lines = @('VOLUME_PREFIX='); Prefix = 'my-stack'; Project = 'my-stack' }
+        @{ Lines = $null; Prefix = 'my-stack'; Project = 'my-stack' }
+    ) {
+        $document = $null
+        if ($Lines) {
+            $path = Join-Path 'TestDrive:' "env-$([guid]::NewGuid().ToString('N'))"
+            Set-Content -LiteralPath $path -Value $Lines
+            $document = Read-EnvFile -Path $path
+        }
+        $folder = Join-Path 'TestDrive:' 'My-Stack'
+
+        Get-VolumePrefix -Document $document -SolutionFolder $folder | Should -BeExactly $Prefix
+        Get-SolutionProjectName -Document $document -SolutionFolder $folder | Should -BeExactly $Project
+    }
+
     It 'Get-SolutionVolumeNames lists the eight volumes' {
         $volumes = Get-SolutionVolumeNames -Prefix virto
         $volumes | Should -Be @(

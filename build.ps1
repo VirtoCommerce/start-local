@@ -201,6 +201,15 @@ try {
         }
     }
 
+    if ($features.Https) {
+        Write-Host 'Exporting the development certificate...' -ForegroundColor Yellow
+        $certsDirectory = Join-Path (Join-Path $solutionPath 'backend') 'certs'
+        if (-not (Export-DevCertificate -Destination $certsDirectory)) {
+            throw [System.InvalidOperationException]::new("The development certificate could not be exported into '$certsDirectory'. Install the .NET SDK (dotnet dev-certs), or switch to HTTP mode with ./start.ps1 -allowInsecureHttp.")
+        }
+        Write-Host '... Development certificate exported' -ForegroundColor Green
+    }
+
     if (Read-YesNo -Prompt 'Start now?' -Default $true -NonInteractive $isNonInteractive) {
         $startScriptPath = Join-Path $solutionPath 'start.ps1'
         if (-not (Test-Path -LiteralPath $startScriptPath -PathType Leaf)) {

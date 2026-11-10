@@ -4,22 +4,25 @@ BeforeDiscovery {
 
     $script:hasDocker = [bool](Get-Command docker -ErrorAction SilentlyContinue)
 
-    # 3 providers x Elasticsearch on/off x Redis on/off, HTTP mode, with a platform.
-    $script:cases = foreach ($provider in 'postgres', 'mysql', 'sqlserver') {
+    # 3 providers x Elasticsearch on/off x Redis on/off, in HTTP and in HTTPS mode, with a platform.
+    $script:cases = foreach ($https in $false, $true) {
+    foreach ($provider in 'postgres', 'mysql', 'sqlserver') {
         foreach ($elasticsearch in $false, $true) {
             foreach ($redis in $false, $true) {
                 $requested = [System.Collections.Generic.List[string]]::new()
                 $requested.Add('docker-compose.yml')
+                if ($https) { $requested.Add('docker-compose.https.yml') }
                 $requested.Add("docker-compose.$provider.yml")
                 $requested.Add('docker-compose.platform.yml')
                 if ($elasticsearch) { $requested.Add('docker-compose.elasticsearch.yml') }
                 if ($redis) { $requested.Add('docker-compose.redis.yml') }
                 @{
-                    Label        = (@($provider) + @(if ($elasticsearch) { 'elasticsearch' }) + @(if ($redis) { 'redis' })) -join '+'
+                    Label        = (@($provider) + @(if ($elasticsearch) { 'elasticsearch' }) + @(if ($redis) { 'redis' }) + @(if ($https) { 'https' })) -join '+'
                     ComposeFiles = [string[]](Update-ComposeFileList -ComposeFiles $requested.ToArray() -HasSourceModules $false)
                 }
             }
         }
+    }
     }
 }
 

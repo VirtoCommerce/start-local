@@ -13,3 +13,4 @@
 . "$PSScriptRoot/auth-helper.ps1"
 . "$PSScriptRoot/watch-url-up.ps1"
 . "$PSScriptRoot/admin-password.ps1"
+. "$PSScriptRoot/https-certs.ps1"

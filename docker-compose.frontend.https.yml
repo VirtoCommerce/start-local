@@ -1,0 +1,10 @@
+# Overlay of docker-compose.frontend.yml: nginx serves TLS with the development certificate from the certificates
+# volume (E8) and proxies to the platform over HTTPS.
+services:
+
+  vc-frontend:
+    environment:
+      - NGINX_ENVSUBST_TEMPLATE_DIR=/etc/nginx/templates-https
+      - PLATFORM_SCHEME=https
+    volumes:
+      - certs:/certs:ro

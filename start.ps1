@@ -73,6 +73,14 @@ try {
     Write-EnvFile -Document $document -Path $envPath
     $features = Get-ComposeFeatures -ComposeFiles $composeFiles
 
+    $usesDevCertificate = $features.Https
+    if ($usesDevCertificate) {
+        # Before up: the platform and the storefront read the certificate from the certificates volume.
+        Write-Host 'Copying the development certificate into the certificates volume...' -ForegroundColor Yellow
+        Sync-DevCertificate -SolutionFolder $solutionPath -VolumeName (Get-CertsVolumeName -Document $document -SolutionFolder $solutionPath) -ProjectName (Get-SolutionProjectName -Document $document -SolutionFolder $solutionPath)
+        Write-Host '... Development certificate ready' -ForegroundColor Green
+    }
+
     Write-Host 'Starting VC solution...' -ForegroundColor Yellow
     Invoke-DockerCompose up -d --remove-orphans
     if ($LASTEXITCODE -ne 0) {
@@ -136,6 +144,14 @@ try {
     Write-Host 'Services:' -ForegroundColor Cyan
     foreach ($service in $serviceUrls) {
         Write-Host ('  {0,-14} {1}' -f $service.Name, $service.Url)
+    }
+    if ($usesDevCertificate -and -not (Test-DevCertificateTrusted)) {
+        Write-Host ''
+        Write-Host (Get-TrustInstructions) -ForegroundColor Yellow
+        if ($features.Elasticsearch) {
+            Write-Host 'Elasticsearch uses its own setup CA. To trust it the same way, copy it out of the setup container first:' -ForegroundColor Yellow
+            Write-Host '     docker compose cp es-setup:/usr/share/elasticsearch/config/certs/ca/ca.crt ./ca.crt' -ForegroundColor Yellow
+        }
     }
     $global:LASTEXITCODE = 0
 }

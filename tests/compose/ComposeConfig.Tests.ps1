@@ -6,8 +6,6 @@ BeforeDiscovery {
     # 3 providers x platform/storefront (none, platform, platform + storefront, storefront on a host platform)
     # x Elasticsearch on/off x Kibana (with Elasticsearch only) x Redis on/off x es-limited (with Elasticsearch only),
     # in HTTP and in HTTPS mode.
-    # Task 14 adds these overlays; until the files exist, the HTTPS cases leave them out. Remove this list then.
-    $script:pendingOverlays = 'docker-compose.platform.https.yml', 'docker-compose.frontend.https.yml'
     $script:stacks = [ordered]@{
         none               = @()
         platform           = @('platform')
@@ -38,7 +36,7 @@ BeforeDiscovery {
                             }
                             $label = (@($provider) + @($features.Keys | Where-Object { $features[$_] }) + @(if ($https) { 'https' })) -join '+'
                             $normalized = [string[]](Update-ComposeFileList -ComposeFiles $requested.ToArray() -HasSourceModules $false)
-                            $composeFiles = [string[]]@($normalized | Where-Object { $script:pendingOverlays -cnotcontains $_ })
+                            $composeFiles = $normalized
                             @{
                                 Label         = $label
                                 Https         = $https
@@ -209,9 +207,48 @@ Describe 'Compose config' -Tag 'Compose' -Skip:(-not $script:hasDocker) {
                 @($frontend.extra_hosts) | Should -Contain 'host.docker.internal=host-gateway'
                 $frontend.PSObject.Properties.Name | Should -Not -Contain 'depends_on'
             }
-            if (-not $Https) {
-                $frontend.environment.PLATFORM_SCHEME | Should -Be 'http'
-                $frontend.environment.NGINX_ENVSUBST_TEMPLATE_DIR | Should -Be '/etc/nginx/templates-http'
+            $mode = if ($Https) { 'https' } else { 'http' }
+            $frontend.environment.PLATFORM_SCHEME | Should -Be $mode
+            $frontend.environment.NGINX_ENVSUBST_TEMPLATE_DIR | Should -Be "/etc/nginx/templates-$mode"
+            $frontend.environment.NGINX_ENVSUBST_FILTER | Should -Be '^PLATFORM_'
+            # The container port is fixed: the mode never changes the port mapping.
+            @($frontend.ports | ForEach-Object { $_.target }) | Should -Be @(8080)
+            $certs = @($frontend.volumes | Where-Object { $_.source -eq 'certs' })
+            if ($Https) {
+                $certs.Count | Should -Be 1
+                $certs[0].target | Should -Be '/certs'
+                $certs[0].read_only | Should -BeTrue
+            }
+            else {
+                $certs.Count | Should -Be 0
+            }
+        }
+
+        It 'the platform serves HTTP in HTTP mode and TLS with the dev certificate in HTTPS mode' {
+            if (-not $Platform) {
+                return
+            }
+            $platformService = $script:config.services.'vc-platform-web'
+            $environment = $platformService.environment
+            $scheme = if ($Https) { 'https' } else { 'http' }
+            $environment.ASPNETCORE_URLS | Should -Be "${scheme}://+:8080"
+            $environment.'VirtoCommerce__AllowInsecureHttp' | Should -Be (-not $Https).ToString().ToLowerInvariant()
+            $environment.'Assets__FileSystem__PublicUrl' | Should -Be "${scheme}://localhost:8090/assets/"
+            $environment.'Content__FileSystem__PublicUrl' | Should -Be "${scheme}://localhost:8090/cms-content/"
+            @($platformService.ports | ForEach-Object { $_.target }) | Should -Be @(8080)
+            $platformService.healthcheck.test[-1] | Should -BeLike "*${scheme}://localhost:8080/health"
+            $certs = @($platformService.volumes | Where-Object { $_.source -eq 'certs' })
+            if ($Https) {
+                $environment.'Kestrel__Certificates__Default__Path' | Should -Be '/certs/dev/localhost.pem'
+                $environment.'Kestrel__Certificates__Default__KeyPath' | Should -Be '/certs/dev/localhost.key'
+                $platformService.healthcheck.test[-1] | Should -BeLike '*curl -fsk *'
+                $certs.Count | Should -Be 1
+                $certs[0].target | Should -Be '/certs'
+                $certs[0].read_only | Should -BeTrue
+            }
+            else {
+                $environment.PSObject.Properties.Name | Should -Not -Contain 'Kestrel__Certificates__Default__Path'
+                $certs.Count | Should -Be 0
             }
         }
 
@@ -222,7 +259,8 @@ Describe 'Compose config' -Tag 'Compose' -Skip:(-not $script:hasDocker) {
             $hasCerts = $script:config.volumes.PSObject.Properties.Name -contains 'certs'
             if ($Https) {
                 ($ComposeFiles -contains 'docker-compose.https.yml') | Should -BeTrue
-                $hasCerts | Should -Be $Elasticsearch
+                # Mounted by es and Kibana, and by the platform and the storefront (the dev certificate).
+                $hasCerts | Should -Be ($Elasticsearch -or $Platform -or $Frontend)
                 if ($hasCerts) {
                     $script:config.volumes.certs.name | Should -Be 'fixture_certs'
                 }
