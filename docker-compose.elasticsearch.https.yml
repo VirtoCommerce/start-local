@@ -1,6 +1,8 @@
 # Overlay of docker-compose.elasticsearch.yml: security and TLS on, with certificates from a setup CA.
 # es-setup is Elastic's official setup container cut to one node. It writes the CA and the es and kibana
-# certificates to the certs volume, then the CA's SHA-256 to ca/ca.fingerprint (the ES image has no openssl,
+# certificates to the certs volume, then es/es-chain.crt (the es certificate followed by the CA: Elasticsearch
+# sends the file's chain, and the platform's CA fingerprint only matches a certificate the server sends, E11),
+# then the CA's SHA-256 to ca/ca.fingerprint (the ES image has no openssl,
 # so it uses sed + base64 + sha256sum, which matches `openssl x509 -fingerprint -sha256`), then sets the
 # kibana_system password once Elasticsearch answers, then idles. Its health check only waits for the files, so es
 # can start while es-setup is still waiting for it. es-setup has no restart policy.
@@ -40,6 +42,9 @@ services:
         chmod 755 ca es kibana
         chmod 640 ca/ca.key es/es.key kibana/kibana.key ca.zip certs.zip instances.yml
         chmod 644 ca/ca.crt es/es.crt kibana/kibana.crt
+        # Rewritten on every run, so a volume made before the chain file existed gets it too.
+        cat es/es.crt ca/ca.crt > es/es-chain.crt
+        chmod 644 es/es-chain.crt
         cd ../..
         # Written last: the health check waits for it, so es and kibana start only after the permissions are set.
         sed '/-----/d' config/certs/ca/ca.crt | base64 -d | sha256sum | cut -d' ' -f1 > config/certs/ca/ca.fingerprint
@@ -55,7 +60,7 @@ services:
         sleep infinity &
         wait $$!
     healthcheck:
-      test: ["CMD-SHELL", "[ -f config/certs/ca/ca.crt ] && [ -f config/certs/es/es.crt ] && [ -f config/certs/kibana/kibana.crt ] && [ -f config/certs/ca/ca.fingerprint ]"]
+      test: ["CMD-SHELL", "[ -f config/certs/ca/ca.crt ] && [ -f config/certs/es/es.crt ] && [ -f config/certs/es/es-chain.crt ] && [ -f config/certs/kibana/kibana.crt ] && [ -f config/certs/ca/ca.fingerprint ]"]
       interval: 5s
       timeout: 5s
       retries: 60
@@ -67,7 +72,7 @@ services:
       - xpack.security.enabled=true
       - xpack.security.http.ssl.enabled=true
       - xpack.security.http.ssl.key=certs/es/es.key
-      - xpack.security.http.ssl.certificate=certs/es/es.crt
+      - xpack.security.http.ssl.certificate=certs/es/es-chain.crt
       - xpack.security.http.ssl.certificate_authorities=certs/ca/ca.crt
       - xpack.security.transport.ssl.enabled=true
       - xpack.security.transport.ssl.key=certs/es/es.key

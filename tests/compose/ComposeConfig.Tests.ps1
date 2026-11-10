@@ -280,9 +280,21 @@ Describe 'Compose config' -Tag 'Compose' -Skip:(-not $script:hasDocker) {
             $es.environment.'xpack.security.enabled' | Should -Be 'true'
             $es.environment.'xpack.security.http.ssl.enabled' | Should -Be 'true'
             $es.environment.'xpack.security.transport.ssl.enabled' | Should -Be 'true'
+            # E11: Elasticsearch sends the CA with its certificate, so the platform's CA fingerprint finds it in the chain.
+            $es.environment.'xpack.security.http.ssl.certificate' | Should -Be 'certs/es/es-chain.crt'
             $es.volumes.target | Should -Contain '/usr/share/elasticsearch/config/certs'
             $setup = $script:config.services.'es-setup'
             $setup.healthcheck.test[-1] | Should -BeLike '*ca/ca.fingerprint*'
+            $setup.healthcheck.test[-1] | Should -BeLike '*es/es-chain.crt*'
+            # The chain is leaf first, then CA, and is written on every run: after the once-per-volume guards (so volumes
+            # made before the chain file get it) and before ca.fingerprint, which the health check waits for.
+            $setupScript = [string]$setup.command[-1]
+            $chainIndex = $setupScript.IndexOf('cat es/es.crt ca/ca.crt > es/es-chain.crt', [System.StringComparison]::Ordinal)
+            $chainIndex | Should -BeGreaterOrEqual 0 -Because 'es-setup writes es/es-chain.crt as the es certificate followed by the CA'
+            $lastGuardEnd = ([regex]::Matches($setupScript, '(?m)^\s*fi\s*$') | Select-Object -Last 1).Index
+            $chainIndex | Should -BeGreaterThan $lastGuardEnd -Because 'the chain is written outside the certs.zip guard'
+            $fingerprintIndex = $setupScript.IndexOf('> config/certs/ca/ca.fingerprint', [System.StringComparison]::Ordinal)
+            $chainIndex | Should -BeLessThan $fingerprintIndex -Because 'ca.fingerprint is written last'
             $setup.environment.PSObject.Properties.Name | Should -Contain 'KIBANA_PASSWORD'
         }
 
