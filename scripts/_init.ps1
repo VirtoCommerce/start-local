@@ -9,3 +9,6 @@
 . "$PSScriptRoot/settings-file.ps1"
 . "$PSScriptRoot/payload.ps1"
 . "$PSScriptRoot/docker-compose-helper.ps1"
+. "$PSScriptRoot/auth-helper.ps1"
+. "$PSScriptRoot/watch-url-up.ps1"
+. "$PSScriptRoot/admin-password.ps1"
