@@ -1,0 +1,9 @@
+# Link file, maintained by the scripts: the storefront proxies to the Docker platform.
+services:
+
+  vc-frontend:
+    environment:
+      - PLATFORM_UPSTREAM=vc-platform-web:8080
+    depends_on:
+      vc-platform-web:
+        condition: service_healthy

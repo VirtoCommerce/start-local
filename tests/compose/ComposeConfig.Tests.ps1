@@ -3,30 +3,44 @@ BeforeDiscovery {
 
     $script:hasDocker = [bool](Get-Command docker -ErrorAction SilentlyContinue)
 
-    # 3 providers x Elasticsearch on/off x Kibana (with Elasticsearch only) x Redis on/off x es-limited (with Elasticsearch only), HTTP mode.
+    # 3 providers x platform/storefront (none, platform, platform + storefront, storefront on a host platform)
+    # x Elasticsearch on/off x Kibana (with Elasticsearch only) x Redis on/off x es-limited (with Elasticsearch only), HTTP mode.
+    $script:stacks = [ordered]@{
+        none               = @()
+        platform           = @('platform')
+        'platform+frontend' = @('platform', 'frontend')
+        frontend           = @('frontend')
+    }
     $script:cases = foreach ($provider in 'postgres', 'mysql', 'sqlserver') {
-        foreach ($elasticsearch in $false, $true) {
-            foreach ($kibana in ($(if ($elasticsearch) { $false, $true } else { $false }))) {
-                foreach ($esLimited in ($(if ($elasticsearch) { $false, $true } else { $false }))) {
-                    foreach ($redis in $false, $true) {
-                        $requested = [System.Collections.Generic.List[string]]::new()
-                        $requested.Add('docker-compose.yml')
-                        $requested.Add("docker-compose.$provider.yml")
-                        $features = [ordered]@{ elasticsearch = $elasticsearch; kibana = $kibana; redis = $redis; 'es-limited' = $esLimited }
-                        foreach ($feature in $features.Keys) {
-                            if ($features[$feature]) {
-                                $requested.Add("docker-compose.$feature.yml")
+        foreach ($stack in $script:stacks.Keys) {
+            foreach ($elasticsearch in $false, $true) {
+                foreach ($kibana in ($(if ($elasticsearch) { $false, $true } else { $false }))) {
+                    foreach ($esLimited in ($(if ($elasticsearch) { $false, $true } else { $false }))) {
+                        foreach ($redis in $false, $true) {
+                            $requested = [System.Collections.Generic.List[string]]::new()
+                            $requested.Add('docker-compose.yml')
+                            $requested.Add("docker-compose.$provider.yml")
+                            $features = [ordered]@{ elasticsearch = $elasticsearch; kibana = $kibana; redis = $redis; 'es-limited' = $esLimited }
+                            foreach ($feature in $script:stacks[$stack]) {
+                                $features[$feature] = $true
                             }
-                        }
-                        $label = (@($provider) + @($features.Keys | Where-Object { $features[$_] })) -join '+'
-                        @{
-                            Label         = $label
-                            Provider      = $provider
-                            Elasticsearch = $elasticsearch
-                            Kibana        = $kibana
-                            Redis         = $redis
-                            EsLimited     = $esLimited
-                            ComposeFiles  = [string[]](Update-ComposeFileList -ComposeFiles $requested.ToArray() -HasSourceModules $false)
+                            foreach ($feature in $features.Keys) {
+                                if ($features[$feature]) {
+                                    $requested.Add("docker-compose.$feature.yml")
+                                }
+                            }
+                            $label = (@($provider) + @($features.Keys | Where-Object { $features[$_] })) -join '+'
+                            @{
+                                Label         = $label
+                                Provider      = $provider
+                                Platform      = $script:stacks[$stack] -contains 'platform'
+                                Frontend      = $script:stacks[$stack] -contains 'frontend'
+                                Elasticsearch = $elasticsearch
+                                Kibana        = $kibana
+                                Redis         = $redis
+                                EsLimited     = $esLimited
+                                ComposeFiles  = [string[]](Update-ComposeFileList -ComposeFiles $requested.ToArray() -HasSourceModules $false)
+                            }
                         }
                     }
                 }
@@ -138,6 +152,53 @@ Describe 'Compose config' -Tag 'Compose' -Skip:(-not $script:hasDocker) {
             ($names -contains 'kibana') | Should -Be $Kibana
             ($names -contains 'redis') | Should -Be $Redis
             ($names -contains 'vc-db') | Should -BeTrue
+            ($names -contains 'vc-platform-web') | Should -Be $Platform
+            ($names -contains 'vc-frontend') | Should -Be $Frontend
+        }
+
+        It 'platform depends_on is exactly the implied set, all service_healthy' {
+            if (-not $Platform) {
+                return
+            }
+            $implied = @('vc-db') + @(if ($Elasticsearch) { 'es' }) + @(if ($Redis) { 'redis' })
+            $dependsOn = $script:config.services.'vc-platform-web'.depends_on
+            @($dependsOn.PSObject.Properties.Name | Sort-Object) | Should -Be @($implied | Sort-Object)
+            foreach ($dependency in $dependsOn.PSObject.Properties) {
+                $dependency.Value.condition | Should -Be 'service_healthy' -Because "dependency $($dependency.Name)"
+            }
+        }
+
+        It 'image tags are vc-platform:<project>-latest and vc-frontend:<project>-latest' {
+            if ($Platform) {
+                $script:config.services.'vc-platform-web'.image | Should -Be "vc-platform:$($script:config.name)-latest"
+            }
+            if ($Frontend) {
+                $script:config.services.'vc-frontend'.image | Should -Be "vc-frontend:$($script:config.name)-latest"
+            }
+        }
+
+        It 'frontend without platform gets host.docker.internal upstream and the host-gateway extra_host' {
+            if (-not $Frontend) {
+                $script:config.services.PSObject.Properties.Name | Should -Not -Contain 'vc-frontend'
+                return
+            }
+            $frontend = $script:config.services.'vc-frontend'
+            if ($Platform) {
+                $frontend.environment.PLATFORM_UPSTREAM | Should -Be 'vc-platform-web:8080'
+                $frontend.depends_on.'vc-platform-web'.condition | Should -Be 'service_healthy'
+                $frontend.PSObject.Properties.Name | Should -Not -Contain 'extra_hosts'
+            }
+            else {
+                $frontend.environment.PLATFORM_UPSTREAM | Should -Be 'host.docker.internal:8090'
+                @($frontend.extra_hosts) | Should -Contain 'host.docker.internal=host-gateway'
+                $frontend.PSObject.Properties.Name | Should -Not -Contain 'depends_on'
+            }
+            $frontend.environment.PLATFORM_SCHEME | Should -Be 'http'
+            $frontend.environment.NGINX_ENVSUBST_TEMPLATE_DIR | Should -Be '/etc/nginx/templates-http'
+        }
+
+        It 'platform-modules is never listed without source modules' {
+            $ComposeFiles | Should -Not -Contain 'docker-compose.platform-modules.yml'
         }
     }
 
@@ -155,7 +216,34 @@ Describe 'Compose config' -Tag 'Compose' -Skip:(-not $script:hasDocker) {
     }
 }
 
+Describe 'Compose V12: all links of a platform' -Tag 'Compose' -Skip:(-not $script:hasDocker) {
+    It 'merges depends_on of vc-db, es and redis, each service_healthy' {
+        $files = [string[]](Update-ComposeFileList -HasSourceModules $false -ComposeFiles @(
+                'docker-compose.yml', 'docker-compose.postgres.yml', 'docker-compose.platform.yml',
+                'docker-compose.elasticsearch.yml', 'docker-compose.redis.yml', 'docker-compose.frontend.yml'))
+        $folder = New-ComposeFixtureFolder -ComposeFiles $files
+        try {
+            $dependsOn = (Invoke-ComposeConfigJson $folder).services.'vc-platform-web'.depends_on
+            foreach ($name in 'vc-db', 'es', 'redis') {
+                $dependsOn.$name.condition | Should -Be 'service_healthy' -Because "dependency $name"
+            }
+        }
+        finally {
+            Remove-Item -LiteralPath (Split-Path $folder -Parent) -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
 Describe 'Compose files' -Tag 'Compose' {
+    It 'platform-modules is listed only with source modules and a platform' {
+        $base = 'docker-compose.yml', 'docker-compose.postgres.yml'
+        $withPlatform = [string[]]($base + 'docker-compose.platform.yml')
+        $modules = 'docker-compose.platform-modules.yml'
+        [string[]](Update-ComposeFileList -ComposeFiles $withPlatform -HasSourceModules $true) | Should -Contain $modules
+        [string[]](Update-ComposeFileList -ComposeFiles $base -HasSourceModules $true) | Should -Not -Contain $modules
+        [string[]](Update-ComposeFileList -ComposeFiles $withPlatform -HasSourceModules $false) | Should -Not -Contain $modules
+    }
+
     It 'every docker-compose*.yml in the repo is in the catalog' {
         $repositoryRoot = Get-TestRepositoryRoot
         $catalogNames = @($script:ComposeFileCatalog | ForEach-Object { $_.Name })

@@ -1,0 +1,6 @@
+server {
+    listen       8080;
+    server_name  localhost;
+
+    include /etc/nginx/conf.d/snippets/storefront.conf;
+}

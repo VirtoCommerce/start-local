@@ -1,0 +1,10 @@
+# Link file, maintained by the scripts: wires the platform to PostgreSQL.
+services:
+
+  vc-platform-web:
+    environment:
+      - DatabaseProvider=PostgreSql
+      - ConnectionStrings__VirtoCommerce=User ID=postgres;Password=${DB_PASSWORD:?DB_PASSWORD is empty in .env};Host=vc-db;Port=5432;Database=VirtoCommerce3
+    depends_on:
+      vc-db:
+        condition: service_healthy

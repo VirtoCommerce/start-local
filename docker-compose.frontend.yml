@@ -1,0 +1,14 @@
+# The storefront: nginx serving the vc-frontend build. The platform upstream comes from a link file.
+services:
+
+  vc-frontend:
+    image: vc-frontend:${COMPOSE_PROJECT_NAME}-latest
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${FRONTEND_PORT}:8080"
+    environment:
+      - NGINX_ENVSUBST_TEMPLATE_DIR=/etc/nginx/templates-http
+      - NGINX_ENVSUBST_FILTER=^PLATFORM_
+      - PLATFORM_SCHEME=http
+    networks:
+      - virto
+    restart: unless-stopped

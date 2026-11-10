@@ -1,0 +1,14 @@
+# Link file, maintained by the scripts: wires the platform to Elasticsearch.
+# SEARCH_PROVIDER is also passed as a plain variable, for the platform entrypoint.
+services:
+
+  vc-platform-web:
+    environment:
+      - SEARCH_PROVIDER=${SEARCH_PROVIDER:-ElasticSearch8}
+      - Search__Provider=${SEARCH_PROVIDER:-ElasticSearch8}
+      - Search__${SEARCH_PROVIDER:-ElasticSearch8}__Server=http://es:9200
+      - Search__${SEARCH_PROVIDER:-ElasticSearch8}__User=elastic
+      - Search__${SEARCH_PROVIDER:-ElasticSearch8}__Key=${ELASTIC_PASSWORD:?ELASTIC_PASSWORD is empty in .env}
+    depends_on:
+      es:
+        condition: service_healthy
