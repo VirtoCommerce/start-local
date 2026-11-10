@@ -1,6 +1,6 @@
 # start-local redesign: `.env`-first, release-pinned, HTTPS — design
 
-**Status:** draft. This document stays living until an implementation plan is drawn against it.
+**Status:** planned (2026-11-10, [implementation plan](../plans/2026-11-10-env-first-redesign.md)). From now on this document is historical: corrections go in a dated *Amendments* section, with the original text left intact.
 **Decisions:** cited by ID from the [decision log](2026-10-15-redesign-decisions.md).
 **Evidence:** cited by section from the [fact check](../research/2026-10-15-redesign-fact-check.md) (§N) and the [review follow-up](../research/2026-10-18-redesign-review-follow-up.md) (follow-up §N).
 
@@ -396,3 +396,17 @@ Every design choice is decided except the lifetime of obsolete parameters, left 
 - The working directory that Rider, VS Code and Visual Studio use for a platform launch, which must be the content root for the settings file (H5).
 - That the platform exits when the database or Elasticsearch isn't ready after a daemon restart, so its restart policy retries it (D10).
 - The Windows Docker CLI and Compose reaching the Docker daemon inside WSL2 on the Windows runner (G1).
+
+## Amendments
+
+### 2026-11-10: switching between HTTP and HTTPS (plan review)
+
+The original text above is unchanged. These corrections came up while checking the [implementation plan](../plans/2026-11-10-env-first-redesign.md) against the upgrade path, in which a migrated folder starts in HTTP mode and is switched to HTTPS later:
+
+- **§5.1, "Ports keep their keys across modes":** this no longer holds for `FRONTEND_PORT`, whose standard port differs by scheme.
+  - Switching to HTTPS rewrites `80` to `443`, and switching to HTTP rewrites `443` to `80`. Any other value is the user's and is never changed.
+  - `PLATFORM_PORT` keeps its value in both modes.
+  - A fresh install with `-allowInsecureHttp` therefore gets `80`. (Plan P17.)
+- **§8.1, build step 3:** start also exports the dev certificate when the export is missing, before copying it into the certificates volume. A folder built in HTTP mode can then switch to HTTPS without a rebuild.
+- **§15, new fact to verify:** whether Elasticsearch accepts `ELASTIC_PASSWORD` when security is first turned on over data created with security off, and keeps the data across repeated mode switches. Plan Task 14, step 7.
+- **Not part of this redesign:** a rebuild on another release channel leaves the old modules in the `modules-data` volume. The fix (dropping that one volume, never the DB, Elasticsearch or CMS volumes) belongs to the separate update PR.
