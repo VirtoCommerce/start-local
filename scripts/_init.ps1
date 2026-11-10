@@ -3,3 +3,4 @@
 
 . "$PSScriptRoot/env-file.ps1"
 . "$PSScriptRoot/compose-files.ps1"
+. "$PSScriptRoot/release-channel.ps1"
