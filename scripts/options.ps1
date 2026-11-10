@@ -230,3 +230,20 @@ function Read-YesNo {
         default { return $Default }
     }
 }
+
+function Resolve-ManifestSource {
+    # Makes a relative custom-manifest path absolute against $BaseDirectory (the caller's directory), so
+    # .env stores a path that works from any folder. URLs, empty values and absolute paths are returned as given.
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory, Position = 0)][AllowEmptyString()][string]$Value,
+        [Parameter(Mandatory, Position = 1)][string]$BaseDirectory
+    )
+
+    $trimmed = $Value.Trim()
+    if ($trimmed -eq '' -or $trimmed -match '^https?://') {
+        return $Value
+    }
+    [System.IO.Path]::GetFullPath($trimmed, $BaseDirectory)
+}

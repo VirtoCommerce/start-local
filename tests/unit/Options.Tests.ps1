@@ -358,4 +358,31 @@ Describe 'Options' -Tag 'Unit' {
             Read-YesNo -Prompt 'Build now?' -Default $Default -NonInteractive $false | Should -Be $Expected
         }
     }
+
+    Context 'Resolve-ManifestSource' {
+        It 'makes a relative path absolute against the base directory' {
+            $base = Join-Path ([System.IO.Path]::GetTempPath()) 'caller dir'
+            $expected = Join-Path $base 'my-packages.json'
+            Resolve-ManifestSource './my-packages.json' $base | Should -Be $expected
+            Resolve-ManifestSource 'my-packages.json' $base | Should -Be $expected
+        }
+
+        It 'resolves parent segments' {
+            $base = Join-Path ([System.IO.Path]::GetTempPath()) 'caller dir'
+            Resolve-ManifestSource '../other/m.json' $base | Should -Be (Join-Path (Split-Path $base -Parent) 'other/m.json')
+        }
+
+        It 'keeps an absolute path as it is' {
+            $absolute = Join-Path ([System.IO.Path]::GetTempPath()) 'abs/m.json'
+            Resolve-ManifestSource $absolute (Join-Path ([System.IO.Path]::GetTempPath()) 'elsewhere') | Should -Be $absolute
+        }
+
+        It 'keeps <Value> unchanged' -TestCases @(
+            @{ Value = 'https://example.com/m.json' }
+            @{ Value = 'http://example.com/m.json' }
+            @{ Value = '' }
+        ) {
+            Resolve-ManifestSource $Value ([System.IO.Path]::GetTempPath()) | Should -Be $Value
+        }
+    }
 }
