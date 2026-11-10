@@ -1,0 +1,12 @@
+# Link file, maintained by the scripts: wires Kibana to Elasticsearch.
+services:
+
+  kibana:
+    environment:
+      - ELASTICSEARCH_HOSTS=http://es:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD:?KIBANA_PASSWORD is empty in .env}
+      - XPACK_SECURITY_ENABLED=false
+    depends_on:
+      es:
+        condition: service_healthy

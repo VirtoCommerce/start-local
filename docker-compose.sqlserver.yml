@@ -3,29 +3,21 @@ services:
   vc-db:
     image: mcr.microsoft.com/mssql/server:${MSSQL_VERSION:-2022-latest}
     ports:
-      - "${MSSQL_PORT:-1433}:1433"
+      - "${BIND_ADDRESS:-127.0.0.1}:${MSSQL_PORT}:1433"
     environment:
       - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=${DB_PASSWORD:-v!rto_Labs!}
+      - MSSQL_SA_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is empty in .env}
     volumes:
       - mssql_data:/var/opt/mssql
     networks:
       - virto
-
-  vc-platform-web:
-    environment:
-      - DatabaseProvider=SqlServer
-      - ConnectionStrings:VirtoCommerce=Server=vc-db,1433;Database=VirtoCommerce3;User Id=sa;Password=${DB_PASSWORD:-v!rto_Labs!};TrustServerCertificate=True
-    depends_on:
-      - vc-db
-      - es
-      - redis
-    entrypoint: ["/wait-for-it.sh", "vc-db:1433", "-t", "120", "--", "/wait-for-it.sh", "es:9200", "-t", "120", "--", "/wait-for-it.sh", "redis:6379", "-t", "120", "--", "dotnet", "VirtoCommerce.Platform.Web.dll"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\" -b"]
+      interval: 10s
+      timeout: 10s
+      retries: 120
 
 volumes:
   mssql_data:
-    name: virto_mssql_data
-    driver: local
-
-networks:
-  virto:
+    name: ${VOLUME_PREFIX:-${COMPOSE_PROJECT_NAME}}_mssql_data

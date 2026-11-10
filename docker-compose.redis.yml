@@ -1,0 +1,19 @@
+# Redis as a pure cache: no volume, no persistence.
+services:
+
+  redis:
+    image: redis:alpine
+    # The shell expands the password from the environment, so it never appears in this file.
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\" --save '' --appendonly no"]
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${REDIS_PORT}:6379"
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD is empty in .env}
+    networks:
+      - virto
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      timeout: 10s
+      retries: 120

@@ -7,3 +7,4 @@
 . "$PSScriptRoot/options.ps1"
 . "$PSScriptRoot/migrate.ps1"
 . "$PSScriptRoot/settings-file.ps1"
+. "$PSScriptRoot/payload.ps1"
