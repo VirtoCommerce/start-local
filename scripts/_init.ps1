@@ -2,3 +2,4 @@
 # Library files define functions only and do nothing at load time.
 
 . "$PSScriptRoot/env-file.ps1"
+. "$PSScriptRoot/compose-files.ps1"
