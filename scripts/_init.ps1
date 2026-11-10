@@ -6,3 +6,4 @@
 . "$PSScriptRoot/release-channel.ps1"
 . "$PSScriptRoot/options.ps1"
 . "$PSScriptRoot/migrate.ps1"
+. "$PSScriptRoot/settings-file.ps1"
