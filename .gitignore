@@ -1,2 +1,7 @@
 /VirtoLocal/
 .env
+/logs/
+/backend/publish/
+/backend/*-packages.json
+/frontend/artifact/
+/docker-compose.platform-modules.yml
