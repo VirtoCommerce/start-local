@@ -1,0 +1,9 @@
+# Overlay of docker-compose.platform-elasticsearch.yml, maintained by the scripts: the platform talks HTTPS to Elasticsearch.
+# The certificates volume is read-only, so the platform entrypoint finds ca/ca.fingerprint.
+services:
+
+  vc-platform-web:
+    environment:
+      - Search__${SEARCH_PROVIDER:-ElasticSearch8}__Server=https://es:9200
+    volumes:
+      - certs:/certs:ro

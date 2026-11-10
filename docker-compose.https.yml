@@ -1,0 +1,5 @@
+# HTTPS mode: listing this file in COMPOSE_FILE is what puts the stack in HTTPS mode.
+# The certificates volume holds the Elasticsearch setup CA and certificates (ca/, es/, kibana/) and the dev certificate (dev/).
+volumes:
+  certs:
+    name: ${VOLUME_PREFIX:-${COMPOSE_PROJECT_NAME}}_certs

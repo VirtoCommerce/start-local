@@ -1,0 +1,84 @@
+# Overlay of docker-compose.elasticsearch.yml: security and TLS on, with certificates from a setup CA.
+# es-setup is Elastic's official setup container cut to one node. It writes the CA and the es and kibana
+# certificates to the certs volume, then the CA's SHA-256 to ca/ca.fingerprint (the ES image has no openssl,
+# so it uses sed + base64 + sha256sum, which matches `openssl x509 -fingerprint -sha256`), then sets the
+# kibana_system password once Elasticsearch answers, then idles. Its health check only waits for the files, so es
+# can start while es-setup is still waiting for it. es-setup has no restart policy.
+services:
+
+  es-setup:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION:-8.18.0}
+    user: "0"
+    volumes:
+      - certs:/usr/share/elasticsearch/config/certs
+    networks:
+      - virto
+    environment:
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:?ELASTIC_PASSWORD is empty in .env}
+      - KIBANA_PASSWORD=${KIBANA_PASSWORD:?KIBANA_PASSWORD is empty in .env}
+    command:
+      - bash
+      - -c
+      - |
+        set -e
+        cd /usr/share/elasticsearch
+        if [ ! -f config/certs/ca.zip ]; then
+          echo "Creating CA"
+          bin/elasticsearch-certutil ca --silent --pem -out config/certs/ca.zip
+          unzip -o config/certs/ca.zip -d config/certs
+        fi
+        if [ ! -f config/certs/certs.zip ]; then
+          echo "Creating certs"
+          printf 'instances:\n  - name: es\n    dns:\n      - es\n      - localhost\n    ip:\n      - 127.0.0.1\n  - name: kibana\n    dns:\n      - kibana\n      - localhost\n    ip:\n      - 127.0.0.1\n' > config/certs/instances.yml
+          bin/elasticsearch-certutil cert --silent --pem -out config/certs/certs.zip --in config/certs/instances.yml --ca-cert config/certs/ca/ca.crt --ca-key config/certs/ca/ca.key
+          unzip -o config/certs/certs.zip -d config/certs
+        fi
+        echo "Setting file permissions"
+        # Only what this script writes: the dev certificate in dev/ is copied in later and has its own permissions.
+        cd config/certs
+        chown -R root:root ca es kibana ca.zip certs.zip instances.yml
+        chmod 755 ca es kibana
+        chmod 640 ca/ca.key es/es.key kibana/kibana.key ca.zip certs.zip instances.yml
+        chmod 644 ca/ca.crt es/es.crt kibana/kibana.crt
+        cd ../..
+        # Written last: the health check waits for it, so es and kibana start only after the permissions are set.
+        sed '/-----/d' config/certs/ca/ca.crt | base64 -d | sha256sum | cut -d' ' -f1 > config/certs/ca/ca.fingerprint
+        chmod 644 config/certs/ca/ca.fingerprint
+        echo "Waiting for Elasticsearch"
+        until curl -s --cacert config/certs/ca/ca.crt https://es:9200 | grep -q "missing authentication credentials"; do sleep 5; done
+        echo "Setting kibana_system password"
+        until curl -s -X POST --cacert config/certs/ca/ca.crt -u "elastic:$$ELASTIC_PASSWORD" -H "Content-Type: application/json" https://es:9200/_security/user/kibana_system/_password -d "{\"password\":\"$$KIBANA_PASSWORD\"}" | grep -q "^{}"; do sleep 5; done
+        echo "All done"
+        # Stay up, healthy: `docker compose up` starts a stopped es-setup again and treats a container that exited
+        # as a failed service_healthy dependency of es ("dependency failed to start ... exited (0)").
+        trap 'exit 0' TERM INT
+        sleep infinity &
+        wait $$!
+    healthcheck:
+      test: ["CMD-SHELL", "[ -f config/certs/ca/ca.crt ] && [ -f config/certs/es/es.crt ] && [ -f config/certs/kibana/kibana.crt ] && [ -f config/certs/ca/ca.fingerprint ]"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+
+  es:
+    volumes:
+      - certs:/usr/share/elasticsearch/config/certs
+    environment:
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=true
+      - xpack.security.http.ssl.key=certs/es/es.key
+      - xpack.security.http.ssl.certificate=certs/es/es.crt
+      - xpack.security.http.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.transport.ssl.enabled=true
+      - xpack.security.transport.ssl.key=certs/es/es.key
+      - xpack.security.transport.ssl.certificate=certs/es/es.crt
+      - xpack.security.transport.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.transport.ssl.verification_mode=certificate
+    depends_on:
+      es-setup:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs --cacert config/certs/ca/ca.crt -u elastic:$$ELASTIC_PASSWORD \"https://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s\""]
+      interval: 10s
+      timeout: 10s
+      retries: 120

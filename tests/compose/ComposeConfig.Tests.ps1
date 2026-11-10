@@ -4,14 +4,18 @@ BeforeDiscovery {
     $script:hasDocker = [bool](Get-Command docker -ErrorAction SilentlyContinue)
 
     # 3 providers x platform/storefront (none, platform, platform + storefront, storefront on a host platform)
-    # x Elasticsearch on/off x Kibana (with Elasticsearch only) x Redis on/off x es-limited (with Elasticsearch only), HTTP mode.
+    # x Elasticsearch on/off x Kibana (with Elasticsearch only) x Redis on/off x es-limited (with Elasticsearch only),
+    # in HTTP and in HTTPS mode.
+    # Task 14 adds these overlays; until the files exist, the HTTPS cases leave them out. Remove this list then.
+    $script:pendingOverlays = 'docker-compose.platform.https.yml', 'docker-compose.frontend.https.yml'
     $script:stacks = [ordered]@{
         none               = @()
         platform           = @('platform')
         'platform+frontend' = @('platform', 'frontend')
         frontend           = @('frontend')
     }
-    $script:cases = foreach ($provider in 'postgres', 'mysql', 'sqlserver') {
+    $script:cases = foreach ($https in $false, $true) {
+    foreach ($provider in 'postgres', 'mysql', 'sqlserver') {
         foreach ($stack in $script:stacks.Keys) {
             foreach ($elasticsearch in $false, $true) {
                 foreach ($kibana in ($(if ($elasticsearch) { $false, $true } else { $false }))) {
@@ -19,6 +23,9 @@ BeforeDiscovery {
                         foreach ($redis in $false, $true) {
                             $requested = [System.Collections.Generic.List[string]]::new()
                             $requested.Add('docker-compose.yml')
+                            if ($https) {
+                                $requested.Add('docker-compose.https.yml')
+                            }
                             $requested.Add("docker-compose.$provider.yml")
                             $features = [ordered]@{ elasticsearch = $elasticsearch; kibana = $kibana; redis = $redis; 'es-limited' = $esLimited }
                             foreach ($feature in $script:stacks[$stack]) {
@@ -29,9 +36,12 @@ BeforeDiscovery {
                                     $requested.Add("docker-compose.$feature.yml")
                                 }
                             }
-                            $label = (@($provider) + @($features.Keys | Where-Object { $features[$_] })) -join '+'
+                            $label = (@($provider) + @($features.Keys | Where-Object { $features[$_] }) + @(if ($https) { 'https' })) -join '+'
+                            $normalized = [string[]](Update-ComposeFileList -ComposeFiles $requested.ToArray() -HasSourceModules $false)
+                            $composeFiles = [string[]]@($normalized | Where-Object { $script:pendingOverlays -cnotcontains $_ })
                             @{
                                 Label         = $label
+                                Https         = $https
                                 Provider      = $provider
                                 Platform      = $script:stacks[$stack] -contains 'platform'
                                 Frontend      = $script:stacks[$stack] -contains 'frontend'
@@ -39,13 +49,14 @@ BeforeDiscovery {
                                 Kibana        = $kibana
                                 Redis         = $redis
                                 EsLimited     = $esLimited
-                                ComposeFiles  = [string[]](Update-ComposeFileList -ComposeFiles $requested.ToArray() -HasSourceModules $false)
+                                ComposeFiles  = $composeFiles
                             }
                         }
                     }
                 }
             }
         }
+    }
     }
     $script:providerVolume = @{ postgres = 'postgres_data'; mysql = 'mysql_data'; sqlserver = 'mssql_data' }
 }
@@ -114,9 +125,14 @@ Describe 'Compose config' -Tag 'Compose' -Skip:(-not $script:hasDocker) {
             }
         }
 
-        It 'long-running services restart unless-stopped' {
+        It 'long-running services restart unless-stopped, the setup container never' {
             foreach ($service in $script:config.services.PSObject.Properties) {
-                $service.Value.restart | Should -Be 'unless-stopped' -Because "service $($service.Name)"
+                if ($service.Name -eq 'es-setup') {
+                    $service.Value.PSObject.Properties.Name | Should -Not -Contain 'restart'
+                }
+                else {
+                    $service.Value.restart | Should -Be 'unless-stopped' -Because "service $($service.Name)"
+                }
             }
         }
 
@@ -193,8 +209,81 @@ Describe 'Compose config' -Tag 'Compose' -Skip:(-not $script:hasDocker) {
                 @($frontend.extra_hosts) | Should -Contain 'host.docker.internal=host-gateway'
                 $frontend.PSObject.Properties.Name | Should -Not -Contain 'depends_on'
             }
-            $frontend.environment.PLATFORM_SCHEME | Should -Be 'http'
-            $frontend.environment.NGINX_ENVSUBST_TEMPLATE_DIR | Should -Be '/etc/nginx/templates-http'
+            if (-not $Https) {
+                $frontend.environment.PLATFORM_SCHEME | Should -Be 'http'
+                $frontend.environment.NGINX_ENVSUBST_TEMPLATE_DIR | Should -Be '/etc/nginx/templates-http'
+            }
+        }
+
+        It 'HTTPS mode adds the certs volume and, with Elasticsearch, the setup container' {
+            $names = @($script:config.services.PSObject.Properties.Name)
+            ($names -contains 'es-setup') | Should -Be ($Https -and $Elasticsearch)
+            # Compose leaves a volume out of the merged config when no service mounts it.
+            $hasCerts = $script:config.volumes.PSObject.Properties.Name -contains 'certs'
+            if ($Https) {
+                ($ComposeFiles -contains 'docker-compose.https.yml') | Should -BeTrue
+                $hasCerts | Should -Be $Elasticsearch
+                if ($hasCerts) {
+                    $script:config.volumes.certs.name | Should -Be 'fixture_certs'
+                }
+            }
+            else {
+                $hasCerts | Should -BeFalse
+                @($ComposeFiles | Where-Object { $_ -like '*.https.yml' }) | Should -BeNullOrEmpty
+            }
+        }
+
+        It 'Elasticsearch and Kibana speak HTTP in HTTP mode and HTTPS in HTTPS mode' {
+            $scheme = if ($Https) { 'https' } else { 'http' }
+            $otherScheme = if ($Https) { 'http' } else { 'https' }
+            $secured = @('es', 'kibana') | Where-Object { $script:config.services.PSObject.Properties.Name -contains $_ }
+            foreach ($name in $secured) {
+                $service = $script:config.services.$name
+                $service.healthcheck.test[-1] | Should -BeLike "*${scheme}://localhost:*" -Because "$name healthcheck"
+                $service.healthcheck.test[-1] | Should -Not -BeLike "*${otherScheme}://*" -Because "$name healthcheck"
+                foreach ($entry in $service.environment.PSObject.Properties) {
+                    "$($entry.Value)" | Should -Not -BeLike "${otherScheme}://*" -Because "$name $($entry.Name)"
+                }
+            }
+            if ($Kibana) {
+                $script:config.services.kibana.environment.ELASTICSEARCH_HOSTS | Should -Be "${scheme}://es:9200"
+                if ($Https) {
+                    $script:config.services.kibana.environment.SERVER_SSL_ENABLED | Should -Be 'true'
+                    $script:config.services.kibana.environment.ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES | Should -Be 'config/certs/ca/ca.crt'
+                    $script:config.services.kibana.volumes.source | Should -Contain 'certs'
+                }
+                else {
+                    $script:config.services.kibana.environment.PSObject.Properties.Name | Should -Not -Contain 'SERVER_SSL_ENABLED'
+                }
+            }
+            if ($Platform -and $Elasticsearch) {
+                $server = $script:config.services.'vc-platform-web'.environment.'Search__ElasticSearch8__Server'
+                $server | Should -Be "${scheme}://es:9200"
+                $certs = @($script:config.services.'vc-platform-web'.volumes | Where-Object { $_.source -eq 'certs' })
+                if ($Https) {
+                    $certs.Count | Should -Be 1
+                    $certs[0].target | Should -Be '/certs'
+                    $certs[0].read_only | Should -BeTrue
+                }
+                else {
+                    $certs.Count | Should -Be 0
+                }
+            }
+        }
+
+        It 'es waits for a healthy es-setup and runs with security and TLS on' {
+            if (-not ($Https -and $Elasticsearch)) {
+                return
+            }
+            $es = $script:config.services.es
+            $es.depends_on.'es-setup'.condition | Should -Be 'service_healthy'
+            $es.environment.'xpack.security.enabled' | Should -Be 'true'
+            $es.environment.'xpack.security.http.ssl.enabled' | Should -Be 'true'
+            $es.environment.'xpack.security.transport.ssl.enabled' | Should -Be 'true'
+            $es.volumes.target | Should -Contain '/usr/share/elasticsearch/config/certs'
+            $setup = $script:config.services.'es-setup'
+            $setup.healthcheck.test[-1] | Should -BeLike '*ca/ca.fingerprint*'
+            $setup.environment.PSObject.Properties.Name | Should -Contain 'KIBANA_PASSWORD'
         }
 
         It 'platform-modules is never listed without source modules' {

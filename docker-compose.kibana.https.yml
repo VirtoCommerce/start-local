@@ -1,0 +1,16 @@
+# Overlay of docker-compose.kibana.yml: Kibana serves TLS with the kibana certificate of the setup CA.
+# The certificates volume is filled by es-setup, which es waits for (docker-compose.elasticsearch.https.yml).
+services:
+
+  kibana:
+    environment:
+      - SERVER_SSL_ENABLED=true
+      - SERVER_SSL_CERTIFICATE=/usr/share/kibana/config/certs/kibana/kibana.crt
+      - SERVER_SSL_KEY=/usr/share/kibana/config/certs/kibana/kibana.key
+    volumes:
+      - certs:/usr/share/kibana/config/certs
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsk https://localhost:5601/api/status"]
+      interval: 10s
+      timeout: 10s
+      retries: 120
