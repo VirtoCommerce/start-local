@@ -90,6 +90,47 @@ try {
         Write-Host '... Development certificate ready' -ForegroundColor Green
     }
 
+    # H3-H6: a platform run from source is prepared here and launched after the Docker services are up.
+    $sourcePlatform = Test-SourcePlatformMode -EnvValues $envValues -ComposeFiles $composeFiles
+    $skipSourcePlatform = $sourcePlatform -and ([string]$envValues['SKIP_PLATFORM']).Trim() -eq 'true'
+    $sourceLogDir = Get-SourcePlatformLogDir -SolutionFolder $solutionPath
+    if ($sourcePlatform) {
+        Write-Host 'Preparing the platform from source...' -ForegroundColor Yellow
+        $platformPath = Resolve-PlatformSourcePath -Value ([string]$envValues['PLATFORM_SOURCE_PATH'])
+        $platformKind = Get-PlatformSourceKind -Path $platformPath
+        $platformContentRoot = Get-PlatformContentRoot -Path $platformPath -Kind $platformKind
+        $settingsFileName = 'VirtoCommerce.Platform.Web.settings.json'
+
+        if ($platformKind -eq 'checkout') {
+            $null = Add-GitInfoExclude -CheckoutPath $platformPath -Entry $settingsFileName
+        }
+        $linkPlan = Get-ModuleLinkPlan -Classification (Get-ModuleSourceKind -Paths (Split-ModuleSourcePaths ([string]$envValues['MODULE_SOURCE_PATHS']))) -ContentRoot $platformContentRoot
+        $linkError = Set-ModuleLinks -LinkPlan $linkPlan
+        if ($linkError) {
+            Write-StartError $linkError
+            exit 1
+        }
+
+        # E11: the setup container of the Elasticsearch HTTPS overlay writes the CA fingerprint the platform trusts.
+        $caFingerprint = $null
+        if ($features.Https -and $features.Elasticsearch) {
+            $caFingerprint = Get-ElasticsearchCaFingerprint
+        }
+        $platformSettings = Get-PlatformSettings -EnvValues (Get-EnvTable -Document $document) -ComposeFiles $composeFiles -Topology Host -CaFingerprint $caFingerprint
+        $settingsPath = Get-SettingsFilePath -PlatformPath $platformPath -Kind $platformKind
+        Write-PlatformSettingsFile -Path $settingsPath -Flat $platformSettings
+        Write-Host "... Settings written to $settingsPath" -ForegroundColor Green
+
+        # H5: the machine's user secrets override the settings file.
+        $secretsPath = Get-PlatformUserSecretsPath
+        if (Test-Path -LiteralPath $secretsPath -PathType Leaf) {
+            $shadowedKeys = Get-ShadowedKeys -SecretsJson (Get-Content -LiteralPath $secretsPath -Raw) -SettingKeys ([string[]]@($platformSettings.Keys))
+            if ($shadowedKeys.Count -gt 0) {
+                Write-Warning "The user secrets in $secretsPath override these settings of the platform: $($shadowedKeys -join ', '). Remove them from the secrets (dotnet user-secrets remove), or the platform ignores the values from .env."
+            }
+        }
+    }
+
     Write-Host 'Starting VC solution...' -ForegroundColor Yellow
     Invoke-DockerCompose up -d --remove-orphans
     if ($LASTEXITCODE -ne 0) {
@@ -98,15 +139,35 @@ try {
     }
     Write-Host '... VC solution started' -ForegroundColor Green
 
+    $sourceCommand = $null
+    if ($sourcePlatform) {
+        $sourceCommand = Get-SourcePlatformCommand -Path $platformPath -Kind $platformKind
+    }
+    if ($sourcePlatform -and -not $skipSourcePlatform) {
+        Write-Host 'Starting the platform from source...' -ForegroundColor Yellow
+        # A platform of an earlier run holds the port and runs with the old settings: restart it.
+        if (Stop-SourcePlatform -LogDir $sourceLogDir) {
+            Write-Host 'Stopped the platform of the earlier run.' -ForegroundColor Yellow
+        }
+        $platformProcessId = Start-SourcePlatform -Command $sourceCommand -LogDir $sourceLogDir
+        Write-Host "... Platform started (pid $platformProcessId, log: $(Join-Path $sourceLogDir 'platform.log'))" -ForegroundColor Green
+    }
+
     $serviceUrls = Get-ServiceUrls -EnvValues (Get-EnvTable -Document $document) -ComposeFiles $composeFiles
-    if ($features.Platform) {
+    if ($features.Platform -or ($sourcePlatform -and -not $skipSourcePlatform)) {
         $platformUrl = ($serviceUrls | Where-Object { $_.Name -eq 'Platform' }).Url
         $adminPassword = [string](Get-EnvValue -Document $document -Key 'ADMIN_PASSWORD')
+        $platformLogTail = if ($sourcePlatform) {
+            { Get-Content -LiteralPath (Join-Path $sourceLogDir 'platform.log') -Tail 50 -ErrorAction Ignore }
+        }
+        else {
+            { docker compose logs --tail 50 vc-platform-web }
+        }
 
         # The checks below report their own failures; none stops the run.
         Write-Host 'Checking installed modules...' -ForegroundColor Yellow
         $global:LASTEXITCODE = 0
-        & (Join-Path $PSScriptRoot 'scripts/check-installed-modules.ps1') -ApiUrl $platformUrl -AdminPassword $adminPassword -OnFailureLog { docker compose logs --tail 50 vc-platform-web }
+        & (Join-Path $PSScriptRoot 'scripts/check-installed-modules.ps1') -ApiUrl $platformUrl -AdminPassword $adminPassword -OnFailureLog $platformLogTail
         if ($LASTEXITCODE -ne 0) {
             Write-Warning 'The installed modules check failed; the solution is running anyway.'
         }
@@ -153,7 +214,20 @@ try {
     Write-Host ''
     Write-Host 'Services:' -ForegroundColor Cyan
     foreach ($service in $serviceUrls) {
+        if ($skipSourcePlatform -and $service.Name -eq 'Platform') {
+            # B6: a skipped platform gets the command to launch it instead of its URL.
+            continue
+        }
         Write-Host ('  {0,-14} {1}' -f $service.Name, $service.Url)
+    }
+    if ($skipSourcePlatform) {
+        $commandText = (@($sourceCommand.FilePath) + $sourceCommand.Arguments | ForEach-Object { if ($_ -match '\s') { "`"$_`"" } else { $_ } }) -join ' '
+        $platformServiceUrl = ($serviceUrls | Where-Object { $_.Name -eq 'Platform' }).Url
+        Write-Host ''
+        Write-Host "The platform is skipped (SKIP_PLATFORM=true). It will listen on $platformServiceUrl. Launch it yourself, or from your IDE:" -ForegroundColor Yellow
+        Write-Host "  working directory: $($sourceCommand.WorkingDirectory)"
+        Write-Host '  environment:       ASPNETCORE_ENVIRONMENT=Development'
+        Write-Host "  command:           $commandText"
     }
     if ($usesDevCertificate -and -not (Test-DevCertificateTrusted)) {
         Write-Host ''

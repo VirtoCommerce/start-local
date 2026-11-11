@@ -170,11 +170,69 @@ function Get-SettingsFilePath {
         [Parameter(Mandatory, Position = 1)][ValidateSet('checkout', 'prebuilt')][string]$Kind
     )
 
-    $fileName = 'VirtoCommerce.Platform.Web.settings.json'
-    if ($Kind -eq 'prebuilt') {
-        return Join-Path $PlatformPath $fileName
+    Join-Path (Get-PlatformContentRoot -Path $PlatformPath -Kind $Kind) 'VirtoCommerce.Platform.Web.settings.json'
+}
+
+function Write-PlatformSettingsFile {
+    # Writes the settings table as the platform's settings file (UTF-8, no byte order mark). The platform reloads it on change.
+    [CmdletBinding()]
+    [OutputType([void])]
+    param(
+        [Parameter(Mandatory, Position = 0)][string]$Path,
+        [Parameter(Mandatory, Position = 1)][System.Collections.IDictionary]$Flat
+    )
+
+    [System.IO.File]::WriteAllText($Path, (ConvertTo-SettingsJson -Flat $Flat) + "`n", [System.Text.UTF8Encoding]::new($false))
+}
+
+function Get-PlatformUserSecretsPath {
+    # The user-secrets file of VirtoCommerce.Platform.Web: one store per machine, shared by every checkout and build (FC §12).
+    [CmdletBinding()]
+    [OutputType([string])]
+    param()
+
+    if ($IsWindows) {
+        return Join-Path $env:APPDATA 'Microsoft\UserSecrets\VirtoCommerce.Platform.Web\secrets.json'
     }
-    Join-Path (Join-Path (Join-Path $PlatformPath 'src') 'VirtoCommerce.Platform.Web') $fileName
+    Join-Path $HOME '.microsoft/usersecrets/VirtoCommerce.Platform.Web/secrets.json'
+}
+
+function Get-ShadowedKeys {
+    # The setting keys that the user-secrets JSON also defines. Secrets override the settings file, so these keys never take
+    # their value from it. Keys compare without case, as .NET configuration does. Text that is not a JSON object gives none.
+    [CmdletBinding()]
+    [OutputType([string[]])]
+    param(
+        [Parameter(Mandatory, Position = 0)][AllowEmptyString()][string]$SecretsJson,
+        [Parameter(Mandatory, Position = 1)][AllowEmptyCollection()][string[]]$SettingKeys
+    )
+
+    try {
+        $secrets = $SecretsJson | ConvertFrom-Json -ErrorAction Stop
+    }
+    catch [System.Management.Automation.RuntimeException] {
+        return , [string[]]@()
+    }
+    if ($secrets -isnot [System.Management.Automation.PSCustomObject]) {
+        return , [string[]]@()
+    }
+
+    $secretKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $pending = [System.Collections.Generic.Stack[object]]::new()
+    $pending.Push(@{ Prefix = ''; Node = $secrets })
+    while ($pending.Count -gt 0) {
+        $item = $pending.Pop()
+        foreach ($property in $item.Node.PSObject.Properties) {
+            $key = "$($item.Prefix)$($property.Name)"
+            if ($property.Value -is [System.Management.Automation.PSCustomObject]) {
+                $pending.Push(@{ Prefix = "${key}:"; Node = $property.Value })
+            }
+            else {
+                $null = $secretKeys.Add($key)
+            }
+        }
+    }
+    , [string[]]@($SettingKeys | Where-Object { $secretKeys.Contains($_) })
 }
 
 function Get-ContainerOnlyKeys {

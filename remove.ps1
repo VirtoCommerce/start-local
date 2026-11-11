@@ -50,6 +50,11 @@ try {
         }
     }
 
+    # First, as stop.ps1 does: the pid file goes with the folder, and a platform run from source would be orphaned.
+    if (Stop-SourcePlatform -LogDir (Get-SourcePlatformLogDir -SolutionFolder $solutionPath)) {
+        Write-Host 'Platform from source stopped' -ForegroundColor Green
+    }
+
     if (Test-Path -LiteralPath (Join-Path $solutionPath 'docker-compose.yml') -PathType Leaf) {
         Write-Host 'Removing the Docker containers...' -ForegroundColor Yellow
         Invoke-DockerCompose @($plan.DownArgs)

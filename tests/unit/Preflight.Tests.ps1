@@ -1,5 +1,6 @@
 BeforeAll {
     . "$PSScriptRoot/../../scripts/_init.ps1"
+    . "$PSScriptRoot/../support/TestHelpers.ps1"
 
     function New-PreflightFiles {
         # The normalized file list of a stack: base, postgres, platform and the named extras.
@@ -270,6 +271,158 @@ Describe 'Preflight' -Tag 'Unit' {
             $values = New-PreflightEnv @{ RELEASE_CHANNEL = '' }
 
             $errors = Invoke-Preflight -EnvValues $values -ComposeFiles (New-PreflightFiles) -NonInteractive $false
+
+            @($errors).Count | Should -Be 0
+        }
+    }
+}
+
+Describe 'Source platform preflight' -Tag 'Unit' {
+    BeforeAll {
+        function script:New-SourcePlatformFolder {
+            param([switch]$Built, [ValidateSet('checkout', 'prebuilt')][string]$Kind = 'checkout')
+
+            $folder = Join-Path (Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))) 'platform'
+            if ($Kind -eq 'checkout') {
+                $web = Join-Path $folder 'src/VirtoCommerce.Platform.Web'
+                $null = New-Item -ItemType Directory -Path $web -Force
+                Set-Content -LiteralPath (Join-Path $web 'VirtoCommerce.Platform.Web.csproj') -Value '<Project />'
+                if ($Built) {
+                    $null = New-Item -ItemType Directory -Path (Join-Path $web 'bin/Debug') -Force
+                    Set-Content -LiteralPath (Join-Path $web 'bin/Debug/VirtoCommerce.Platform.Web.dll') -Value 'x'
+                }
+            }
+            else {
+                $null = New-Item -ItemType Directory -Path $folder -Force
+                if ($Built) {
+                    Set-Content -LiteralPath (Join-Path $folder 'VirtoCommerce.Platform.Web.dll') -Value 'x'
+                }
+            }
+            $folder
+        }
+
+        function script:New-SourceEnv {
+            param([string]$PlatformPath, [hashtable]$Override = @{})
+
+            $values = [ordered]@{
+                COMPOSE_FILE         = 'docker-compose.yml;docker-compose.postgres.yml'
+                RELEASE_CHANNEL      = 'stable'
+                PLATFORM_SOURCE_PATH = $PlatformPath
+                PLATFORM_PORT        = '8090'
+            }
+            foreach ($key in $Override.Keys) {
+                $values[$key] = $Override[$key]
+            }
+            $values
+        }
+
+        $script:sourceStack = [string[]]@('docker-compose.yml', 'docker-compose.postgres.yml')
+    }
+
+    BeforeEach {
+        Mock Test-DockerRunning { $true }
+        Mock Get-ComposeVersion { '2.40.3' }
+        Mock Get-ProjectPublishedPorts { [int[]]@() }
+        Mock Test-PortInUse { $false }
+        Mock Test-FileSharing { $true }
+        Mock Get-RunningSourcePlatform { $null }
+        Mock Test-SymlinkRights { $true }
+    }
+
+    It 'reports a missing build output and names the folder' {
+        $path = New-SourcePlatformFolder
+
+        $errors = Invoke-Preflight -EnvValues (New-SourceEnv $path) -ComposeFiles $script:sourceStack -NonInteractive $true
+
+        @($errors).Count | Should -Be 1
+        $errors[0] | Should -BeLike "*$(Join-Path $path 'src/VirtoCommerce.Platform.Web')*"
+        $errors[0] | Should -Match 'build'
+    }
+
+    It 'reports a folder that is neither a checkout nor a prebuilt platform, and names it' {
+        $path = New-SourcePlatformFolder -Kind prebuilt
+
+        $errors = Invoke-Preflight -EnvValues (New-SourceEnv $path) -ComposeFiles $script:sourceStack -NonInteractive $true
+
+        @($errors).Count | Should -Be 1
+        $errors[0] | Should -BeLike "*$path*"
+        $errors[0] | Should -Match 'PLATFORM_SOURCE_PATH'
+    }
+
+    It 'reports nothing for a built checkout and a prebuilt folder' {
+        foreach ($kind in 'checkout', 'prebuilt') {
+            $path = New-SourcePlatformFolder -Kind $kind -Built
+
+            $errors = Invoke-Preflight -EnvValues (New-SourceEnv $path) -ComposeFiles $script:sourceStack -NonInteractive $true
+
+            @($errors).Count | Should -Be 0
+        }
+    }
+
+    It 'asks for no build output when SKIP_PLATFORM=true' {
+        $path = New-SourcePlatformFolder
+
+        $errors = Invoke-Preflight -EnvValues (New-SourceEnv $path @{ SKIP_PLATFORM = 'true' }) -ComposeFiles $script:sourceStack -NonInteractive $true
+
+        @($errors).Count | Should -Be 0
+    }
+
+    It 'checks nothing about a source platform for a Docker platform' {
+        $files = [string[]]@('docker-compose.yml', 'docker-compose.postgres.yml', 'docker-compose.platform.yml')
+
+        $errors = Invoke-Preflight -EnvValues (New-SourceEnv '') -ComposeFiles $files -NonInteractive $true
+
+        @($errors).Count | Should -Be 0
+    }
+
+    It 'does not flag the port of the source platform that this folder started itself' {
+        $path = New-SourcePlatformFolder -Built
+        Mock Get-RunningSourcePlatform { [System.Diagnostics.Process]::GetCurrentProcess() }
+        Mock Test-PortInUse { $Port -eq 8090 }
+
+        $errors = Invoke-Preflight -EnvValues (New-SourceEnv $path) -ComposeFiles $script:sourceStack -NonInteractive $true
+
+        @($errors).Count | Should -Be 0
+    }
+
+    It 'still flags the port when no source platform of this folder runs' {
+        $path = New-SourcePlatformFolder -Built
+        Mock Test-PortInUse { $Port -eq 8090 }
+
+        $errors = Invoke-Preflight -EnvValues (New-SourceEnv $path) -ComposeFiles $script:sourceStack -NonInteractive $true
+
+        @($errors).Count | Should -Be 1
+        $errors[0] | Should -Match 'PLATFORM_PORT'
+    }
+
+    Context 'symlink rights for the module links' {
+        It 'asks for Developer Mode or an elevated shell when links are planned and cannot be made' {
+            $path = New-SourcePlatformFolder -Built
+            $web = New-ModuleFolder 'A.Web' 'VirtoCommerce.A'
+            Mock Test-SymlinkRights { $false }
+
+            $errors = Invoke-Preflight -EnvValues (New-SourceEnv $path @{ MODULE_SOURCE_PATHS = $web }) -ComposeFiles $script:sourceStack -NonInteractive $true
+
+            @($errors).Count | Should -Be 1
+            $errors[0] | Should -Match 'Developer Mode or run an elevated shell'
+        }
+
+        It 'does not ask without module sources, even where links cannot be made' {
+            $path = New-SourcePlatformFolder -Built
+            Mock Test-SymlinkRights { $false }
+
+            $errors = Invoke-Preflight -EnvValues (New-SourceEnv $path) -ComposeFiles $script:sourceStack -NonInteractive $true
+
+            @($errors).Count | Should -Be 0
+            Should -Invoke Test-SymlinkRights -Times 0
+        }
+
+        It 'does not ask when the platform runs in Docker (the sources are bind-mounted)' {
+            $web = New-ModuleFolder 'A.Web' 'VirtoCommerce.A'
+            $files = [string[]]@('docker-compose.yml', 'docker-compose.postgres.yml', 'docker-compose.platform.yml')
+            Mock Test-SymlinkRights { $false }
+
+            $errors = Invoke-Preflight -EnvValues (New-SourceEnv '' @{ MODULE_SOURCE_PATHS = $web }) -ComposeFiles $files -NonInteractive $true
 
             @($errors).Count | Should -Be 0
         }

@@ -133,6 +133,33 @@ Describe 'Remove' -Tag 'Unit' {
             Test-Path -LiteralPath $folder | Should -BeFalse
         }
 
+        It 'stops a platform run from source before it deletes anything (<Mode>)' -Skip:$composeMissing -ForEach @(
+            @{ Mode = 'full'; Arguments = @() }
+            @{ Mode = 'keepData'; Arguments = @('-keepData') }
+        ) {
+            $folder = New-RemoveFolder -Name "rm-$([guid]::NewGuid().ToString('N').Substring(0, 12))"
+            $command = [pscustomobject]@{
+                FilePath         = (Get-Process -Id $PID).Path
+                Arguments        = [string[]]@('-NoProfile', '-Command', 'Start-Sleep -Seconds 120')
+                WorkingDirectory = $folder
+            }
+            $processId = Start-SourcePlatform -Command $command -LogDir (Get-SourcePlatformLogDir -SolutionFolder $folder)
+            try {
+                $result = Invoke-RemoveScript (@('-nonInteractive', '-solutionFolder', $folder) + $Arguments)
+
+                $result.ExitCode | Should -Be 0
+                $deadline = [datetime]::UtcNow.AddSeconds(30)
+                while ([datetime]::UtcNow -lt $deadline -and (Get-Process -Id $processId -ErrorAction Ignore) -and -not (Get-Process -Id $processId).HasExited) {
+                    Start-Sleep -Milliseconds 200
+                }
+                $process = Get-Process -Id $processId -ErrorAction Ignore
+                ((-not $process) -or $process.HasExited) | Should -BeTrue
+            }
+            finally {
+                Get-Process -Id $processId -ErrorAction Ignore | Stop-Process -Force -ErrorAction Ignore
+            }
+        }
+
         It 'stops on a folder that has no .env' {
             $folder = Join-Path $TestDrive "$([guid]::NewGuid().ToString('N'))/NoEnv"
             $null = New-Item -ItemType Directory -Path $folder -Force

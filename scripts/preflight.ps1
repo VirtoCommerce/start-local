@@ -184,6 +184,14 @@ function Invoke-Preflight {
     }
 
     $ownPorts = if ($dockerRunning) { Get-ProjectPublishedPorts } else { [int[]]@() }
+    $sourcePlatform = Test-SourcePlatformMode -EnvValues $EnvValues -ComposeFiles $ComposeFiles
+    if ($sourcePlatform -and (Get-RunningSourcePlatform -LogDir (Get-SourcePlatformLogDir -SolutionFolder (Get-Location).ProviderPath))) {
+        # A re-run: the platform this folder started earlier holds its port, and start restarts it.
+        $platformPort = 0
+        if ([int]::TryParse((Get-EnvSettingValue -EnvValues $EnvValues -Key 'PLATFORM_PORT' -Default '8090').Trim(), [ref]$platformPort)) {
+            $ownPorts = [int[]]@($ownPorts + $platformPort)
+        }
+    }
     foreach ($required in (Get-RequiredPorts -EnvValues $EnvValues -ComposeFiles $ComposeFiles -ExcludePorts $ownPorts)) {
         if (Test-PortInUse -Port $required.Port) {
             $errors.Add("Port $($required.Port) ($($required.Key)) is already in use. Stop the program that uses it, or set another $($required.Key) in .env.")
@@ -206,6 +214,25 @@ function Invoke-Preflight {
             }
             if (-not $shared) {
                 $errors.Add("File sharing: Docker cannot mount '$($mount.Source)' (MODULE_SOURCE_PATHS). Add its folder to Docker Desktop > Settings > Resources > File sharing, then run again.")
+            }
+        }
+    }
+
+    if ($sourcePlatform) {
+        $platformPath = Resolve-PlatformSourcePath -Value ([string]$EnvValues['PLATFORM_SOURCE_PATH'])
+        $platformKind = Get-PlatformSourceKind -Path $platformPath
+        if (-not $platformKind) {
+            $errors.Add("PLATFORM_SOURCE_PATH '$platformPath' is neither a vc-platform checkout (it has no src/VirtoCommerce.Platform.Web/VirtoCommerce.Platform.Web.csproj) nor a prebuilt platform folder (it has no VirtoCommerce.Platform.Web.dll). Fix the path in .env.")
+        }
+        else {
+            # H6: start only runs what is built. A skipped platform is built and run by the user (B6).
+            $contentRoot = Get-PlatformContentRoot -Path $platformPath -Kind $platformKind
+            if (([string]$EnvValues['SKIP_PLATFORM']).Trim() -ne 'true' -and -not (Test-PlatformBuildOutput -Path $platformPath -Kind $platformKind)) {
+                $errors.Add("The platform is not built: '$contentRoot' has no build output (bin/**/VirtoCommerce.Platform.Web.dll). Build it with dotnet build or from your IDE, then run again.")
+            }
+            $linkPlan = Get-ModuleLinkPlan -Classification $moduleSources -ContentRoot $contentRoot
+            if ($linkPlan.Count -gt 0 -and -not (Test-SymlinkRights)) {
+                $errors.Add('MODULE_SOURCE_PATHS needs directory symlinks, which this shell cannot create. Enable Developer Mode or run an elevated shell, then run again.')
             }
         }
     }

@@ -91,3 +91,16 @@ function New-ScratchSolution {
     Copy-Payload -Root (Get-TestRepositoryRoot) -Destination $folder
     $folder
 }
+
+function New-ModuleFolder {
+    # A folder under TestDrive. With $ModuleId it holds a module.manifest, as a module's *.Web folder does.
+    param([string]$Name, [string]$ModuleId)
+
+    $folder = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
+    $path = Join-Path $folder $Name
+    $null = New-Item -ItemType Directory -Path $path -Force
+    if ($ModuleId) {
+        Set-Content -LiteralPath (Join-Path $path 'module.manifest') -Value "<?xml version=`"1.0`" encoding=`"utf-8`"?>`n<module xmlns:xsi=`"http://www.w3.org/2001/XMLSchema-instance`">`n  <id>$ModuleId</id>`n  <version>3.0.0</version>`n</module>"
+    }
+    $path
+}

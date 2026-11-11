@@ -254,3 +254,76 @@ Describe 'SettingsFile' -Tag 'Unit' {
         }
     }
 }
+
+Describe 'Source platform settings file' -Tag 'Unit' {
+    Context 'Write-PlatformSettingsFile' {
+        It 'writes the flat settings as nested JSON, in UTF-8 without a byte order mark' {
+            $path = Join-Path $TestDrive 'settings.json'
+
+            Write-PlatformSettingsFile -Path $path -Flat ([ordered]@{ 'DatabaseProvider' = 'PostgreSql'; 'Kestrel:Endpoints:Main:Url' = 'http://127.0.0.1:8090' })
+
+            $bytes = [System.IO.File]::ReadAllBytes($path)
+            $bytes[0] | Should -Not -Be 0xEF
+            $json = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+            $json.DatabaseProvider | Should -Be 'PostgreSql'
+            $json.Kestrel.Endpoints.Main.Url | Should -Be 'http://127.0.0.1:8090'
+        }
+
+        It 'replaces the file of an earlier run' {
+            $path = Join-Path $TestDrive 'settings-again.json'
+            Write-PlatformSettingsFile -Path $path -Flat ([ordered]@{ 'A' = '1'; 'B' = '2' })
+
+            Write-PlatformSettingsFile -Path $path -Flat ([ordered]@{ 'A' = '3' })
+
+            $json = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+            $json.A | Should -Be '3'
+            $json.PSObject.Properties.Name | Should -Not -Contain 'B'
+        }
+
+        It 'writes what Get-PlatformSettings gives for the Host topology' {
+            $path = Join-Path $TestDrive 'settings-host.json'
+            $files = [string[]]@('docker-compose.yml', 'docker-compose.postgres.yml')
+
+            Write-PlatformSettingsFile -Path $path -Flat (Get-PlatformSettings -EnvValues (New-EnvValues) -ComposeFiles $files -Topology Host)
+
+            $json = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+            $json.ConnectionStrings.VirtoCommerce | Should -BeLike '*Host=localhost*'
+            $json.Kestrel.Endpoints.Main.Url | Should -Be 'http://127.0.0.1:8090'
+        }
+    }
+
+    Context 'Get-ShadowedKeys' {
+        It 'names the setting keys that the user secrets also define' {
+            $secrets = '{"ConnectionStrings:VirtoCommerce":"x","Unrelated:Key":"y"}'
+
+            $shadowed = Get-ShadowedKeys -SecretsJson $secrets -SettingKeys @('DatabaseProvider', 'ConnectionStrings:VirtoCommerce')
+
+            $shadowed | Should -Be @('ConnectionStrings:VirtoCommerce')
+        }
+
+        It 'reads nested secrets and ignores the case of keys, as .NET configuration does' {
+            $secrets = '{"connectionstrings":{"virtocommerce":"x"}}'
+
+            $shadowed = Get-ShadowedKeys -SecretsJson $secrets -SettingKeys @('ConnectionStrings:VirtoCommerce')
+
+            $shadowed | Should -Be @('ConnectionStrings:VirtoCommerce')
+        }
+
+        It 'gives nothing for no secrets, an empty store, or text that is not JSON' {
+            foreach ($secrets in '', '{}', 'not json', '[1,2]') {
+                $shadowed = Get-ShadowedKeys -SecretsJson $secrets -SettingKeys @('A')
+                @($shadowed).Count | Should -Be 0
+            }
+        }
+
+        It 'returns a string array even for no match' {
+            (Get-ShadowedKeys -SecretsJson '{}' -SettingKeys @('A')) -is [string[]] | Should -BeTrue
+        }
+    }
+
+    Context 'Get-PlatformUserSecretsPath' {
+        It 'points into the per-user secrets store of VirtoCommerce.Platform.Web' {
+            ((Get-PlatformUserSecretsPath) -replace '\\', '/') | Should -BeLike '*/VirtoCommerce.Platform.Web/secrets.json'
+        }
+    }
+}
