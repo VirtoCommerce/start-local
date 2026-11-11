@@ -158,8 +158,8 @@ function ConvertTo-ComposeYamlString {
 }
 
 function New-ModulesComposeYaml {
-    # The content of docker-compose.platform-modules.yml: one bind mount per plan entry. Compose merges volumes by target,
-    # so a mount at the modules folder itself replaces the modules-data volume of docker-compose.platform.yml.
+    # The content of docker-compose/platform-modules.yml: one bind mount per plan entry. Compose merges volumes by target,
+    # so a mount at the modules folder itself replaces the modules-data volume of docker-compose/platform.yml.
     [CmdletBinding()]
     [OutputType([string])]
     param(
@@ -180,7 +180,7 @@ function New-ModulesComposeYaml {
 }
 
 function Write-ModulesComposeFile {
-    # Writes docker-compose.platform-modules.yml into the solution folder, or deletes it when the plan is empty.
+    # Writes docker-compose/platform-modules.yml into the solution folder, or deletes it when the plan is empty.
     [CmdletBinding()]
     [OutputType([void])]
     param(
@@ -193,6 +193,7 @@ function Write-ModulesComposeFile {
         Remove-Item -LiteralPath $path -Force -ErrorAction Ignore
         return
     }
+    $null = New-Item -ItemType Directory -Path (Split-Path -Parent $path) -Force
     [System.IO.File]::WriteAllText($path, (New-ModulesComposeYaml -MountPlan $MountPlan), [System.Text.UTF8Encoding]::new($false))
 }
 
@@ -237,7 +238,7 @@ function Test-SourcePlatformMode {
         [Parameter(Mandatory, Position = 1)][AllowEmptyCollection()][string[]]$ComposeFiles
     )
 
-    -not ($ComposeFiles -ccontains 'docker-compose.platform.yml') -and
+    -not ($ComposeFiles -ccontains (Get-ComposeFileName 'platform.yml')) -and
         -not [string]::IsNullOrWhiteSpace([string]$EnvValues['PLATFORM_SOURCE_PATH'])
 }
 

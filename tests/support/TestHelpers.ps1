@@ -29,7 +29,10 @@ function New-ComposeFixtureFolder {
     foreach ($name in $ComposeFiles) {
         $source = Join-Path $repositoryRoot $name
         if (Test-Path -LiteralPath $source -PathType Leaf) {
-            Copy-Item -LiteralPath $source -Destination $folder
+            # The name is a relative path (docker-compose/postgres.yml), so the copy keeps its subfolder.
+            $destination = Join-Path $folder $name
+            $null = New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force
+            Copy-Item -LiteralPath $source -Destination $destination
         }
     }
 

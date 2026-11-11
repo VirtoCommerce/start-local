@@ -81,7 +81,7 @@ function Get-PlatformSettings {
 
     $features = Get-ComposeFeatures -ComposeFiles $ComposeFiles
     if (-not $features.Provider) {
-        throw [System.InvalidOperationException]::new('COMPOSE_FILE lists no database provider. List exactly one of docker-compose.postgres.yml, docker-compose.mysql.yml, docker-compose.sqlserver.yml.')
+        throw [System.InvalidOperationException]::new('COMPOSE_FILE lists no database provider. List exactly one of docker-compose/postgres.yml, docker-compose/mysql.yml, docker-compose/sqlserver.yml.')
     }
 
     $hostSide = $Topology -eq 'Host'

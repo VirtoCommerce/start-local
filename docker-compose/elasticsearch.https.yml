@@ -1,4 +1,4 @@
-# Overlay of docker-compose.elasticsearch.yml: security and TLS on, with certificates from a setup CA.
+# Overlay of elasticsearch.yml: security and TLS on, with certificates from a setup CA.
 # es-setup is Elastic's official setup container cut to one node. It writes the CA and the es and kibana
 # certificates to the certs volume, then es/es-chain.crt (the es certificate followed by the CA: Elasticsearch
 # sends the file's chain, and the platform's CA fingerprint only matches a certificate the server sends, E11),

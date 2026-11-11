@@ -1,5 +1,5 @@
-# Overlay of docker-compose.kibana.yml: Kibana serves TLS with the kibana certificate of the setup CA.
-# The certificates volume is filled by es-setup, which es waits for (docker-compose.elasticsearch.https.yml).
+# Overlay of kibana.yml: Kibana serves TLS with the kibana certificate of the setup CA.
+# The certificates volume is filled by es-setup, which es waits for (elasticsearch.https.yml).
 services:
 
   kibana:

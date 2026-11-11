@@ -65,11 +65,11 @@ Describe 'SettingsFile' -Tag 'Unit' {
         }
 
         It 'omits Search keys without elasticsearch and the Redis key without redis' {
-            $noSearch = Get-Settings -Without 'docker-compose.elasticsearch.yml'
+            $noSearch = Get-Settings -Without 'docker-compose/elasticsearch.yml'
             @($noSearch.Keys | Where-Object { $_ -like 'Search:*' }) | Should -BeNullOrEmpty
             $noSearch.Contains('ConnectionStrings:RedisConnectionString') | Should -BeTrue
 
-            $noRedis = Get-Settings -Without 'docker-compose.redis.yml'
+            $noRedis = Get-Settings -Without 'docker-compose/redis.yml'
             $noRedis.Contains('ConnectionStrings:RedisConnectionString') | Should -BeFalse
             $noRedis.Contains('Search:Provider') | Should -BeTrue
         }
@@ -117,7 +117,7 @@ Describe 'SettingsFile' -Tag 'Unit' {
         }
 
         It 'fails when COMPOSE_FILE lists no database provider' {
-            $files = [string[]]@('docker-compose.yml', 'docker-compose.platform.yml')
+            $files = [string[]]@('docker-compose.yml', 'docker-compose/platform.yml')
             { Get-PlatformSettings -EnvValues (New-EnvValues) -ComposeFiles $files -Topology Container } |
                 Should -Throw -ExceptionType ([System.InvalidOperationException]) -ExpectedMessage '*database provider*'
         }
@@ -166,7 +166,7 @@ Describe 'SettingsFile' -Tag 'Unit' {
                 Should -BeGreaterThan @($with.Keys).IndexOf('Search:ElasticSearch8:Key')
 
             (Get-Settings -Topology Host -Https $true).Contains('Search:ElasticSearch8:CertificateFingerprint') | Should -BeFalse
-            (Get-Settings -Topology Host -Https $true -Without 'docker-compose.elasticsearch.yml' -CaFingerprint 'abc123').Keys |
+            (Get-Settings -Topology Host -Https $true -Without 'docker-compose/elasticsearch.yml' -CaFingerprint 'abc123').Keys |
                 Where-Object { $_ -like '*CertificateFingerprint' } | Should -BeNullOrEmpty
         }
 
@@ -282,7 +282,7 @@ Describe 'Source platform settings file' -Tag 'Unit' {
 
         It 'writes what Get-PlatformSettings gives for the Host topology' {
             $path = Join-Path $TestDrive 'settings-host.json'
-            $files = [string[]]@('docker-compose.yml', 'docker-compose.postgres.yml')
+            $files = [string[]]@('docker-compose.yml', 'docker-compose/postgres.yml')
 
             Write-PlatformSettingsFile -Path $path -Flat (Get-PlatformSettings -EnvValues (New-EnvValues) -ComposeFiles $files -Topology Host)
 

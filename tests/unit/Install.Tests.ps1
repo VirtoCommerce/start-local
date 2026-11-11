@@ -141,7 +141,7 @@ Describe 'Invoke-PayloadInstall' -Tag 'Unit' {
             $values.Contains('DB_PROVIDER') | Should -BeFalse
             $values['DB_PASSWORD'] | Should -BeExactly 'pgPass1'
             $values['VOLUME_PREFIX'] | Should -Be 'virto'
-            $values['COMPOSE_FILE'] | Should -Match 'docker-compose\.postgres\.yml'
+            $values['COMPOSE_FILE'] | Should -Match 'docker-compose/postgres\.yml'
             $values['COMPOSE_FILE'] | Should -Not -Match 'https'
         }
 
@@ -230,7 +230,7 @@ Describe 'Invoke-PayloadInstall' -Tag 'Unit' {
     Context '.env written by a wrapper beforehand' {
         It 'keeps COMPOSE_FILE with the optional file and fills only the empty keys' {
             $null = New-Item -ItemType Directory -Path $folder
-            $composeFile = (ConvertTo-ComposeFileValue (Get-DefaultComposeFiles -Provider mysql -Https $true)) + ';docker-compose.es-limited.yml'
+            $composeFile = (ConvertTo-ComposeFileValue (Get-DefaultComposeFiles -Provider mysql -Https $true)) + ';docker-compose/es-limited.yml'
             $document = Read-EnvFile (Join-Path (Get-TestRepositoryRoot) '.env.example')
             Set-EnvValue -Document $document -Key 'COMPOSE_FILE' -Value $composeFile
             Set-EnvValue -Document $document -Key 'DB_PASSWORD' -Value 'wrapperPassword1'
@@ -250,7 +250,7 @@ Describe 'Invoke-PayloadInstall' -Tag 'Unit' {
 
         It 'treats a file with no layout marker but a COMPOSE_FILE as layout 2, adding the keys it lacks' {
             $null = New-Item -ItemType Directory -Path $folder
-            $composeFile = (ConvertTo-ComposeFileValue (Get-DefaultComposeFiles -Provider postgres -Https $true)) + ';docker-compose.es-limited.yml'
+            $composeFile = (ConvertTo-ComposeFileValue (Get-DefaultComposeFiles -Provider postgres -Https $true)) + ';docker-compose/es-limited.yml'
             Set-Content -LiteralPath (Join-Path $folder '.env') -Value "COMPOSE_FILE=$composeFile"
 
             $result = Invoke-Install -Folder $folder -Bound @{ releaseChannel = 'stable'; nonInteractive = $true }

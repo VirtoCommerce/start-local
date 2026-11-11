@@ -31,10 +31,10 @@ Describe 'Options' -Tag 'Unit' {
             $document = New-OptionsDocument
             $null = Update-EnvFromOptions -Document $document -Bound @{ dbProvider = 'mysql' }
             $files = Get-DocumentComposeFiles $document
-            $files | Should -Not -Contain 'docker-compose.postgres.yml'
-            $files | Should -Not -Contain 'docker-compose.platform-postgres.yml'
-            $files | Should -Contain 'docker-compose.mysql.yml'
-            $files | Should -Contain 'docker-compose.platform-mysql.yml'
+            $files | Should -Not -Contain 'docker-compose/postgres.yml'
+            $files | Should -Not -Contain 'docker-compose/platform-postgres.yml'
+            $files | Should -Contain 'docker-compose/mysql.yml'
+            $files | Should -Contain 'docker-compose/platform-mysql.yml'
         }
 
         It '-dbProvider on an empty COMPOSE_FILE starts from the default list of that provider' {
@@ -69,7 +69,7 @@ Describe 'Options' -Tag 'Unit' {
             $null = Update-EnvFromOptions -Document $document -Bound @{ skipKibana = [switch]$true }
             $files = Get-DocumentComposeFiles $document
             foreach ($name in 'kibana.yml', 'kibana.https.yml', 'kibana-elasticsearch.yml', 'kibana-elasticsearch.https.yml') {
-                $files | Should -Not -Contain "docker-compose.$name"
+                $files | Should -Not -Contain "docker-compose/$name"
             }
 
             $null = Update-EnvFromOptions -Document $document -Bound @{ skipKibana = [switch]::new($false) }
@@ -77,9 +77,9 @@ Describe 'Options' -Tag 'Unit' {
         }
 
         It '-skip<Part> removes the part and its files: <Switch>' -TestCases @(
-            @{ Switch = 'skipFrontend'; Removed = 'docker-compose.frontend.yml' }
-            @{ Switch = 'skipElasticsearch'; Removed = 'docker-compose.elasticsearch.yml' }
-            @{ Switch = 'skipRedis'; Removed = 'docker-compose.redis.yml' }
+            @{ Switch = 'skipFrontend'; Removed = 'docker-compose/frontend.yml' }
+            @{ Switch = 'skipElasticsearch'; Removed = 'docker-compose/elasticsearch.yml' }
+            @{ Switch = 'skipRedis'; Removed = 'docker-compose/redis.yml' }
         ) {
             $document = New-OptionsDocument
             $null = Update-EnvFromOptions -Document $document -Bound @{ $Switch = [switch]$true } -WarningAction SilentlyContinue
@@ -89,8 +89,8 @@ Describe 'Options' -Tag 'Unit' {
         It '-skipElasticsearch drops Kibana with a warning' {
             $document = New-OptionsDocument
             $null = Update-EnvFromOptions -Document $document -Bound @{ skipElasticsearch = [switch]$true } -WarningVariable dropped -WarningAction SilentlyContinue
-            $dropped | Should -Match 'docker-compose.kibana.yml needs docker-compose.elasticsearch.yml'
-            Get-DocumentComposeFiles $document | Should -Not -Contain 'docker-compose.kibana.yml'
+            $dropped | Should -Match 'docker-compose/kibana.yml needs docker-compose/elasticsearch.yml'
+            Get-DocumentComposeFiles $document | Should -Not -Contain 'docker-compose/kibana.yml'
         }
 
         It '-skipPlatform with PLATFORM_SOURCE_PATH writes SKIP_PLATFORM and keeps COMPOSE_FILE' {
@@ -108,8 +108,8 @@ Describe 'Options' -Tag 'Unit' {
             $document = New-OptionsDocument
             $null = Update-EnvFromOptions -Document $document -Bound @{ skipPlatform = [switch]$true }
             $files = Get-DocumentComposeFiles $document
-            @($files | Where-Object { $_ -like 'docker-compose.platform*' }) | Should -HaveCount 0
-            $files | Should -Contain 'docker-compose.frontend-hostplatform.yml'
+            @($files | Where-Object { $_ -like 'docker-compose/platform*' }) | Should -HaveCount 0
+            $files | Should -Contain 'docker-compose/frontend-hostplatform.yml'
             Get-EnvValue -Document $document -Key 'SKIP_PLATFORM' | Should -BeNullOrEmpty
         }
 
@@ -135,7 +135,7 @@ Describe 'Options' -Tag 'Unit' {
             $document = New-OptionsDocument
             $null = Invoke-LikeAnEntryScript -dbProvider MySQL -allowInsecureHttp -skipKibana -skipSampleData -Document $document
             $files = Get-DocumentComposeFiles $document
-            $files | Should -Contain 'docker-compose.mysql.yml'
+            $files | Should -Contain 'docker-compose/mysql.yml'
             @($files | Where-Object { $_ -like '*.https.yml' -or $_ -like '*kibana*' }) | Should -HaveCount 0
             Get-EnvValue -Document $document -Key 'FRONTEND_PORT' | Should -Be '80'
         }

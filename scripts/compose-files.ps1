@@ -12,6 +12,26 @@
 #             dropped with a warning; a link without them is simply not added)
 #   Excludes  Names that must not be emitted for a link to be added
 #   Generated $true when a script writes the file (it is emitted only on request)
+#
+# Names are COMPOSE_FILE entries: paths relative to the solution folder, always with '/'. The base file stays in the
+# folder itself, so it is the first file Compose reads and the folder stays the project directory; every other file
+# lives in the docker-compose/ subfolder.
+
+$script:ComposeFolderName = 'docker-compose'
+
+function Get-ComposeFileName {
+    # The COMPOSE_FILE entry for a file suffix: 'yml' -> 'docker-compose.yml', 'platform.yml' -> 'docker-compose/platform.yml'.
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory, Position = 0)][string]$Suffix
+    )
+
+    if ($Suffix -eq 'yml') {
+        return 'docker-compose.yml'
+    }
+    "$script:ComposeFolderName/$Suffix"
+}
 
 $script:ComposeFileCatalog = & {
     function New-ComposeCatalogEntry {
@@ -25,7 +45,7 @@ $script:ComposeFileCatalog = & {
             [bool]$Generated = $false
         )
 
-        $toName = { param($part) if ($part -eq 'yml') { 'docker-compose.yml' } else { "docker-compose.$part" } }
+        $toName = { param($part) Get-ComposeFileName $part }
         [pscustomobject]@{
             Name      = & $toName $Suffix
             Kind      = $Kind
@@ -67,8 +87,8 @@ $script:ComposeFileCatalog = & {
     , $entries.ToArray()
 }
 
-$script:ComposeHttpsFile = 'docker-compose.https.yml'
-$script:ComposeModulesFile = 'docker-compose.platform-modules.yml'
+$script:ComposeHttpsFile = Get-ComposeFileName 'https.yml'
+$script:ComposeModulesFile = Get-ComposeFileName 'platform-modules.yml'
 
 function Get-ComposeFileList {
     [CmdletBinding()]
@@ -78,7 +98,8 @@ function Get-ComposeFileList {
         [Parameter(Position = 1)][string]$Separator = ';'
     )
 
-    $files = $Value.Split($Separator) | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+    # A hand-written 'docker-compose\postgres.yml' (Windows) is the catalog's 'docker-compose/postgres.yml'.
+    $files = $Value.Split($Separator) | ForEach-Object { $_.Trim().Replace('\', '/') } | Where-Object { $_ }
     # The unary comma keeps an empty or single-item list an array through the pipeline.
     , [string[]]@($files)
 }
@@ -105,13 +126,13 @@ function Get-ComposeFeatures {
     $isListed = { param($name) $ComposeFiles -ccontains $name }
     [pscustomobject]@{
         Provider      = Resolve-DbProvider -ComposeFiles $ComposeFiles
-        Platform      = & $isListed 'docker-compose.platform.yml'
-        Elasticsearch = & $isListed 'docker-compose.elasticsearch.yml'
-        Kibana        = & $isListed 'docker-compose.kibana.yml'
-        Redis         = & $isListed 'docker-compose.redis.yml'
-        Frontend      = & $isListed 'docker-compose.frontend.yml'
+        Platform      = & $isListed (Get-ComposeFileName 'platform.yml')
+        Elasticsearch = & $isListed (Get-ComposeFileName 'elasticsearch.yml')
+        Kibana        = & $isListed (Get-ComposeFileName 'kibana.yml')
+        Redis         = & $isListed (Get-ComposeFileName 'redis.yml')
+        Frontend      = & $isListed (Get-ComposeFileName 'frontend.yml')
         Https         = & $isListed $script:ComposeHttpsFile
-        EsLimited     = & $isListed 'docker-compose.es-limited.yml'
+        EsLimited     = & $isListed (Get-ComposeFileName 'es-limited.yml')
         Unknown       = [string[]]@($ComposeFiles | Where-Object { $known -cnotcontains $_ })
     }
 }
@@ -252,13 +273,13 @@ function Get-DefaultComposeFiles {
     )
 
     $names = [System.Collections.Generic.List[string]]::new()
-    $names.Add('docker-compose.yml')
+    $names.Add((Get-ComposeFileName 'yml'))
     if ($Https) {
         $names.Add($script:ComposeHttpsFile)
     }
-    $names.Add("docker-compose.$Provider.yml")
+    $names.Add((Get-ComposeFileName "$Provider.yml"))
     foreach ($feature in 'platform', 'elasticsearch', 'kibana', 'redis', 'frontend') {
-        $names.Add("docker-compose.$feature.yml")
+        $names.Add((Get-ComposeFileName "$feature.yml"))
     }
     Update-ComposeFileList -ComposeFiles $names.ToArray() -HasSourceModules $false
 }

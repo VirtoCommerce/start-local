@@ -212,7 +212,7 @@ Describe 'SourceMode' -Tag 'Unit' {
 
             Write-ModulesComposeFile -SolutionFolder $folder -MountPlan $plan
 
-            $path = Join-Path $folder 'docker-compose.platform-modules.yml'
+            $path = Join-Path $folder 'docker-compose/platform-modules.yml'
             $path | Should -Exist
             [System.IO.File]::ReadAllBytes($path)[0] | Should -Not -Be 0xEF
             Get-Content -LiteralPath $path -Raw | Should -Be (New-ModulesComposeYaml -MountPlan $plan)
@@ -221,8 +221,9 @@ Describe 'SourceMode' -Tag 'Unit' {
         It 'deletes the file when the plan is empty, and accepts a missing file' {
             $folder = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
             $null = New-Item -ItemType Directory -Path $folder
-            $path = Join-Path $folder 'docker-compose.platform-modules.yml'
-            Set-Content -LiteralPath $path -Value 'services: {}'
+            $path = Join-Path $folder 'docker-compose/platform-modules.yml'
+            $null = New-Item -ItemType File -Path $path -Force -Value 'services: {}'
+            $path | Should -Exist
 
             Write-ModulesComposeFile -SolutionFolder $folder -MountPlan @()
             $path | Should -Not -Exist
@@ -245,13 +246,13 @@ Describe 'SourceMode' -Tag 'Unit' {
             Mock Test-PortInUse { $false }
             Mock Test-FileSharing { $true }
 
-            $script:dockerStack = [string[]]@('docker-compose.yml', 'docker-compose.postgres.yml', 'docker-compose.platform.yml')
+            $script:dockerStack = [string[]]@('docker-compose.yml', 'docker-compose/postgres.yml', 'docker-compose/platform.yml')
         }
 
         function script:New-SourceModulesEnv {
             param([string]$Paths)
             [ordered]@{
-                COMPOSE_FILE        = 'docker-compose.yml;docker-compose.postgres.yml;docker-compose.platform.yml'
+                COMPOSE_FILE        = 'docker-compose.yml;docker-compose/postgres.yml;docker-compose/platform.yml'
                 RELEASE_CHANNEL     = 'stable'
                 PGSQL_PORT          = '5432'
                 PLATFORM_PORT       = '8090'
@@ -300,7 +301,7 @@ Describe 'SourceMode' -Tag 'Unit' {
         }
 
         It 'skips the file sharing probe when the platform is not a Docker platform' {
-            $files = [string[]]@('docker-compose.yml', 'docker-compose.postgres.yml')
+            $files = [string[]]@('docker-compose.yml', 'docker-compose/postgres.yml')
 
             $errors = Invoke-Preflight -EnvValues (New-SourceModulesEnv (New-ModuleFolder 'A.Web' 'A')) -ComposeFiles $files -NonInteractive $true
 

@@ -5,4 +5,4 @@
 /backend/certs/
 /backend/*-packages.json
 /frontend/artifact/
-/docker-compose.platform-modules.yml
+/docker-compose/platform-modules.yml

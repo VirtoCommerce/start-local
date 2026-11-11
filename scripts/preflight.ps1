@@ -9,11 +9,11 @@ $script:PortCatalog = @(
     @{ Provider = 'postgres'; Key = 'PGSQL_PORT'; Default = 5432 }
     @{ Provider = 'mysql'; Key = 'MYSQL_PORT'; Default = 3306 }
     @{ Provider = 'sqlserver'; Key = 'MSSQL_PORT'; Default = 1433 }
-    @{ File = 'docker-compose.platform.yml'; Key = 'PLATFORM_PORT'; Default = 8090 }
-    @{ File = 'docker-compose.elasticsearch.yml'; Key = 'ES_PORT'; Default = 9200 }
-    @{ File = 'docker-compose.kibana.yml'; Key = 'KIBANA_PORT'; Default = 5601 }
-    @{ File = 'docker-compose.redis.yml'; Key = 'REDIS_PORT'; Default = 6379 }
-    @{ File = 'docker-compose.frontend.yml'; Key = 'FRONTEND_PORT'; Default = 443 }
+    @{ File = (Get-ComposeFileName 'platform.yml'); Key = 'PLATFORM_PORT'; Default = 8090 }
+    @{ File = (Get-ComposeFileName 'elasticsearch.yml'); Key = 'ES_PORT'; Default = 9200 }
+    @{ File = (Get-ComposeFileName 'kibana.yml'); Key = 'KIBANA_PORT'; Default = 5601 }
+    @{ File = (Get-ComposeFileName 'redis.yml'); Key = 'REDIS_PORT'; Default = 6379 }
+    @{ File = (Get-ComposeFileName 'frontend.yml'); Key = 'FRONTEND_PORT'; Default = 443 }
 )
 
 function Test-PortInUse {

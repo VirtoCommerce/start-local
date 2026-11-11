@@ -11,11 +11,11 @@ BeforeDiscovery {
             foreach ($redis in $false, $true) {
                 $requested = [System.Collections.Generic.List[string]]::new()
                 $requested.Add('docker-compose.yml')
-                if ($https) { $requested.Add('docker-compose.https.yml') }
-                $requested.Add("docker-compose.$provider.yml")
-                $requested.Add('docker-compose.platform.yml')
-                if ($elasticsearch) { $requested.Add('docker-compose.elasticsearch.yml') }
-                if ($redis) { $requested.Add('docker-compose.redis.yml') }
+                if ($https) { $requested.Add('docker-compose/https.yml') }
+                $requested.Add("docker-compose/$provider.yml")
+                $requested.Add('docker-compose/platform.yml')
+                if ($elasticsearch) { $requested.Add('docker-compose/elasticsearch.yml') }
+                if ($redis) { $requested.Add('docker-compose/redis.yml') }
                 @{
                     Label        = (@($provider) + @(if ($elasticsearch) { 'elasticsearch' }) + @(if ($redis) { 'redis' }) + @(if ($https) { 'https' })) -join '+'
                     ComposeFiles = [string[]](Update-ComposeFileList -ComposeFiles $requested.ToArray() -HasSourceModules $false)

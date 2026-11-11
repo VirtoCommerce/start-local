@@ -114,7 +114,7 @@ function Get-TrustInstructions {
 }
 
 function Get-CertsVolumeName {
-    # The certificates volume of a solution folder, named as docker-compose.https.yml names it.
+    # The certificates volume of a solution folder, named as docker-compose/https.yml names it.
     [CmdletBinding()]
     [OutputType([string])]
     param(

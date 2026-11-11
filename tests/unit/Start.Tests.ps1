@@ -8,7 +8,7 @@ BeforeAll {
         $folder = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
         Copy-Payload -Root (Get-TestRepositoryRoot) -Destination $folder
         $document = Read-EnvFile (Join-Path $folder '.env.example')
-        Set-EnvValue -Document $document -Key 'COMPOSE_FILE' -Value 'docker-compose.yml;docker-compose.postgres.yml;docker-compose.platform.yml;docker-compose.platform-postgres.yml'
+        Set-EnvValue -Document $document -Key 'COMPOSE_FILE' -Value 'docker-compose.yml;docker-compose/postgres.yml;docker-compose/platform.yml;docker-compose/platform-postgres.yml'
         Set-EnvValue -Document $document -Key 'RELEASE_CHANNEL' -Value 'stable'
         if ($AdminPassword) {
             Set-EnvValue -Document $document -Key 'ADMIN_PASSWORD' -Value $AdminPassword
@@ -110,14 +110,14 @@ Describe 'Start' -Tag 'Unit' {
         It 'writes the generated compose file, lists it in COMPOSE_FILE, and removes both when MODULE_SOURCE_PATHS is emptied' {
             $catalog = New-SourceModule 'VirtoCommerce.Catalog'
             $folder = New-StartFolder -ModuleSourcePaths $catalog
-            $generated = Join-Path $folder 'docker-compose.platform-modules.yml'
+            $generated = Join-Path $folder 'docker-compose/platform-modules.yml'
             Mock-Platform
 
             Invoke-Start -Folder $folder -SkipSampleData $true | Should -Be 0
 
             $generated | Should -Exist
             Get-Content -LiteralPath $generated -Raw | Should -BeLike '*/opt/virtocommerce/platform/modules/VirtoCommerce.Catalog*'
-            (Get-EnvValue -Document (Read-EnvFile (Join-Path $folder '.env')) -Key 'COMPOSE_FILE') | Should -BeLike '*docker-compose.platform-modules.yml'
+            (Get-EnvValue -Document (Read-EnvFile (Join-Path $folder '.env')) -Key 'COMPOSE_FILE') | Should -BeLike '*docker-compose/platform-modules.yml'
 
             $document = Read-EnvFile (Join-Path $folder '.env')
             Set-EnvValue -Document $document -Key 'MODULE_SOURCE_PATHS' -Value ''
@@ -132,7 +132,7 @@ Describe 'Start' -Tag 'Unit' {
         It 'keeps every file listed in the on-disk COMPOSE_FILE until the preflight has passed' {
             $catalog = New-SourceModule 'VirtoCommerce.Catalog'
             $folder = New-StartFolder -ModuleSourcePaths $catalog
-            $generated = Join-Path $folder 'docker-compose.platform-modules.yml'
+            $generated = Join-Path $folder 'docker-compose/platform-modules.yml'
             Mock-Platform
             Invoke-Start -Folder $folder -SkipSampleData $true | Should -Be 0
             $generated | Should -Exist
@@ -162,13 +162,13 @@ Describe 'Start' -Tag 'Unit' {
             $catalog = New-SourceModule 'VirtoCommerce.Catalog'
             $folder = New-StartFolder -ModuleSourcePaths $catalog
             $document = Read-EnvFile (Join-Path $folder '.env')
-            Set-EnvValue -Document $document -Key 'COMPOSE_FILE' -Value 'docker-compose.yml;docker-compose.postgres.yml'
+            Set-EnvValue -Document $document -Key 'COMPOSE_FILE' -Value 'docker-compose.yml;docker-compose/postgres.yml'
             Write-EnvFile -Document $document -Path (Join-Path $folder '.env')
             Mock-Platform
 
             Invoke-Start -Folder $folder -SkipSampleData $true | Should -Be 0
 
-            (Join-Path $folder 'docker-compose.platform-modules.yml') | Should -Not -Exist
+            (Join-Path $folder 'docker-compose/platform-modules.yml') | Should -Not -Exist
         }
     }
 
@@ -179,7 +179,7 @@ Describe 'Start' -Tag 'Unit' {
                 param([string]$PlatformPath, [hashtable]$Override = @{})
                 $folder = New-StartFolder
                 $document = Read-EnvFile (Join-Path $folder '.env')
-                Set-EnvValue -Document $document -Key 'COMPOSE_FILE' -Value 'docker-compose.yml;docker-compose.postgres.yml'
+                Set-EnvValue -Document $document -Key 'COMPOSE_FILE' -Value 'docker-compose.yml;docker-compose/postgres.yml'
                 Set-EnvValue -Document $document -Key 'PLATFORM_SOURCE_PATH' -Value $PlatformPath
                 foreach ($key in $Override.Keys) {
                     Set-EnvValue -Document $document -Key $key -Value ([string]$Override[$key])
@@ -311,7 +311,7 @@ Describe 'Start' -Tag 'Unit' {
             $platform = New-PrebuiltPlatform
             $folder = New-SourceStartFolder $platform @{ SKIP_PLATFORM = 'true' }
             $document = Read-EnvFile (Join-Path $folder '.env')
-            Set-EnvValue -Document $document -Key 'COMPOSE_FILE' -Value 'docker-compose.yml;docker-compose.https.yml;docker-compose.postgres.yml;docker-compose.elasticsearch.yml'
+            Set-EnvValue -Document $document -Key 'COMPOSE_FILE' -Value 'docker-compose.yml;docker-compose/https.yml;docker-compose/postgres.yml;docker-compose/elasticsearch.yml'
             Write-EnvFile -Document $document -Path (Join-Path $folder '.env')
             Mock Sync-DevCertificate { }
             Mock Test-DevCertificateTrusted { $true }

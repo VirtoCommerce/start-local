@@ -14,13 +14,14 @@ Describe 'Payload' -Tag 'Unit' {
         }
         $allowlist | Should -Contain 'install.ps1'
         $allowlist | Should -Contain '.env.example'
-        $allowlist | Should -Contain 'docker-compose*.yml'
+        $allowlist | Should -Contain 'docker-compose.yml'
+        $allowlist | Should -Contain 'docker-compose/'
     }
 
     Context 'Copy-Payload' {
         BeforeEach {
             $root = Join-Path 'TestDrive:' "source-$([guid]::NewGuid().ToString('N'))"
-            foreach ($relative in 'install.ps1', 'start.ps1', '.env.example', 'docker-compose.yml', 'docker-compose.redis.yml',
+            foreach ($relative in 'install.ps1', 'start.ps1', '.env.example', 'docker-compose.yml', 'docker-compose/redis.yml',
                 'scripts/_init.ps1', 'frontend/Dockerfile', 'docs/readme.md', 'tests/a.Tests.ps1', '.github/ci.yml',
                 'build-VC-solution.ps1', 'VirtoLocal_create_local_files.ps1', 'notes.txt') {
                 $null = New-Item -ItemType File -Path (Join-Path $root $relative) -Force -Value "root $relative"
@@ -32,7 +33,7 @@ Describe 'Payload' -Tag 'Unit' {
         It 'copies the allowlisted files and folders only' {
             Copy-Payload -Root $root -Destination $destination
 
-            foreach ($relative in 'install.ps1', 'start.ps1', '.env.example', 'docker-compose.yml', 'docker-compose.redis.yml', 'scripts/_init.ps1', 'frontend/Dockerfile') {
+            foreach ($relative in 'install.ps1', 'start.ps1', '.env.example', 'docker-compose.yml', 'docker-compose/redis.yml', 'scripts/_init.ps1', 'frontend/Dockerfile') {
                 Join-Path $destination $relative | Should -Exist
             }
             foreach ($relative in 'docs', 'tests', '.github', 'build-VC-solution.ps1', 'VirtoLocal_create_local_files.ps1', 'notes.txt') {
@@ -68,6 +69,30 @@ Describe 'Payload' -Tag 'Unit' {
             Copy-Payload -Root $root -Destination $destination
 
             [System.IO.File]::ReadAllBytes($envPath) | Should -Be $sentinel
+        }
+
+        It 'refreshes an existing docker-compose folder and keeps the generated file in it' {
+            $null = New-Item -ItemType File -Path (Join-Path $destination 'docker-compose/redis.yml') -Force -Value 'old redis'
+            $null = New-Item -ItemType File -Path (Join-Path $destination 'docker-compose/platform-modules.yml') -Force -Value 'generated'
+
+            Copy-Payload -Root $root -Destination $destination
+
+            Get-Content -Raw -LiteralPath (Join-Path $destination 'docker-compose/redis.yml') | Should -BeExactly 'root docker-compose/redis.yml'
+            Get-Content -Raw -LiteralPath (Join-Path $destination 'docker-compose/platform-modules.yml') | Should -BeExactly 'generated'
+            Join-Path $destination 'docker-compose/docker-compose' | Should -Not -Exist
+        }
+
+        It 'deletes the layout-1 provider files beside docker-compose.yml and no other root compose file' {
+            foreach ($name in 'docker-compose.postgres.yml', 'docker-compose.mysql.yml', 'docker-compose.sqlserver.yml', 'docker-compose.override.yml') {
+                $null = New-Item -ItemType File -Path (Join-Path $destination $name) -Force -Value 'layout 1'
+            }
+
+            Copy-Payload -Root $root -Destination $destination
+
+            foreach ($name in 'docker-compose.postgres.yml', 'docker-compose.mysql.yml', 'docker-compose.sqlserver.yml') {
+                Join-Path $destination $name | Should -Not -Exist
+            }
+            Join-Path $destination 'docker-compose.override.yml' | Should -Exist
         }
 
         It 'does not write a .env when the destination has none' {

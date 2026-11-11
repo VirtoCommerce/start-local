@@ -1,4 +1,4 @@
-# Overlay of docker-compose.platform.yml: Kestrel serves TLS with the development certificate, which build or start
+# Overlay of platform.yml: Kestrel serves TLS with the development certificate, which build or start
 # exports and copies into dev/ of the certificates volume (SPEC §10). The volume is read-only here.
 services:
 

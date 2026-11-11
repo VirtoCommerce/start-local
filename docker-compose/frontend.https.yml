@@ -1,4 +1,4 @@
-# Overlay of docker-compose.frontend.yml: nginx serves TLS with the development certificate from the certificates
+# Overlay of frontend.yml: nginx serves TLS with the development certificate from the certificates
 # volume (E8) and proxies to the platform over HTTPS.
 services:
 

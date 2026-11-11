@@ -120,7 +120,8 @@ Sample data (catalogs, products, and so on) is installed when you build through 
 ```
 VirtoLocal/
 ├── .env                  # the configuration (created from .env.example)
-├── docker-compose*.yml   # the compose file set; COMPOSE_FILE lists the files in use
+├── docker-compose.yml    # the base compose file, which keeps plain `docker compose` working in the folder
+├── docker-compose/       # the other compose files; COMPOSE_FILE lists the files in use
 ├── backend/ frontend/    # Dockerfiles and nginx templates
 ├── scripts/              # helpers the scripts load
 ├── logs/                 # log and pid file of a platform run from source
@@ -182,7 +183,7 @@ Please take a look at [Virto Commerce Documentation](https://docs.virtocommerce.
 
 `COMPOSE_FILE` lists the stack: the database, the platform, Elasticsearch, Kibana, Redis, the storefront, plus small link files that wire two parts together and `.https` overlays. Pick parts with the `-skip*` switches and `-dbProvider`; do not hand-edit the link files and overlays, because every script run adds the missing ones and removes the ones that no longer apply. Your own override files stay listed after the built-in files, so you can add them by hand.
 
-`docker-compose.es-limited.yml` is the one opt-in file: add it to `COMPOSE_FILE` to run Elasticsearch single-node, without memory locking (for hosts that cap kernel resource limits, such as cloud VMs and CI). It is safe over existing data.
+`docker-compose/es-limited.yml` is the one opt-in file: add it to `COMPOSE_FILE` to run Elasticsearch single-node, without memory locking (for hosts that cap kernel resource limits, such as cloud VMs and CI). It is safe over existing data.
 
 ### Writing `.env` before the first install
 
@@ -213,12 +214,12 @@ The platform and the modules can run from your own checkouts. `start.ps1` only r
 |------|------------------|-------------|
 | Platform | `PLATFORM_SOURCE_PATH` empty | `PLATFORM_SOURCE_PATH` is a vc-platform checkout or a prebuilt platform folder |
 | Modules | installed by `build.ps1` from the release channel | `MODULE_SOURCE_PATHS`: module `*.Web` folders separated by `;`, **or** one whole `modules` folder, never both |
-| Storefront | `docker-compose.frontend.yml` listed | not supported; run it with yarn and pass `-skipFrontend` |
+| Storefront | `docker-compose/frontend.yml` listed | not supported; run it with yarn and pass `-skipFrontend` |
 | Database, Elasticsearch, Kibana, Redis | always Docker | not applicable |
 
 - **Platform from source.** `start.ps1` writes the platform settings (the same values the Docker platform gets) to `VirtoCommerce.Platform.Web.settings.json` in the platform's content root, then runs it in the background with `ASPNETCORE_ENVIRONMENT=Development`, writing `logs/platform.log` and `logs/platform.pid`. `stop.ps1` and `remove.ps1` stop it. It needs a .NET 10 platform and the content root as the working directory, which also applies to an IDE launch.
 - **Platform skipped (`SKIP_PLATFORM=true` or `-skipPlatform`).** `start.ps1` prepares everything (settings file, module links, services), does not launch the platform, and prints the command to run from a debugger.
-- **Modules.** With a platform from source, each `*.Web` folder is symlinked into `<platform>/modules/<module id>`, and a `modules` folder becomes the platform's modules folder. On Windows, creating symlinks needs Developer Mode or an elevated shell. With the Docker platform, `start.ps1` generates `docker-compose.platform-modules.yml` with bind mounts of the module folders over the installed modules.
+- **Modules.** With a platform from source, each `*.Web` folder is symlinked into `<platform>/modules/<module id>`, and a `modules` folder becomes the platform's modules folder. On Windows, creating symlinks needs Developer Mode or an elevated shell. With the Docker platform, `start.ps1` generates `docker-compose/platform-modules.yml` with bind mounts of the module folders over the installed modules.
 
 ## 🔄 Daily use
 

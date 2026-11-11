@@ -8,9 +8,19 @@ function Get-PayloadAllowlist {
     # Entries are paths relative to the payload root; a trailing '/' marks a folder, '*' a file name wildcard.
     , [string[]]@(
         'install.ps1', 'build.ps1', 'start.ps1', 'stop.ps1', 'remove.ps1',
-        '.env.example', 'docker-compose*.yml',
-        'scripts/', 'backend/', 'frontend/'
+        '.env.example', 'docker-compose.yml',
+        'docker-compose/', 'scripts/', 'backend/', 'frontend/'
     )
+}
+
+function Get-LegacyComposeFileNames {
+    # The layout-1 provider files, which lived beside docker-compose.yml. Their layout-2 copies are in docker-compose/,
+    # so the payload deletes these from a folder it installs into; no other root compose file is touched.
+    [CmdletBinding()]
+    [OutputType([string[]])]
+    param()
+
+    'docker-compose.postgres.yml', 'docker-compose.mysql.yml', 'docker-compose.sqlserver.yml'
 }
 
 function Get-LegacyScriptNames {
@@ -48,6 +58,13 @@ function Copy-Payload {
         # No entry can match .env, which is the user's configuration: the payload never writes it.
         foreach ($file in Get-ChildItem -LiteralPath $rootPath -Filter $entry -File -Force) {
             Copy-Item -LiteralPath $file.FullName -Destination (Join-Path $destinationPath $file.Name) -Force
+        }
+    }
+
+    foreach ($name in Get-LegacyComposeFileNames) {
+        $legacy = Join-Path $destinationPath $name
+        if (Test-Path -LiteralPath $legacy -PathType Leaf) {
+            Remove-Item -LiteralPath $legacy -Force
         }
     }
 

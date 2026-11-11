@@ -22,16 +22,16 @@ BeforeDiscovery {
                             $requested = [System.Collections.Generic.List[string]]::new()
                             $requested.Add('docker-compose.yml')
                             if ($https) {
-                                $requested.Add('docker-compose.https.yml')
+                                $requested.Add('docker-compose/https.yml')
                             }
-                            $requested.Add("docker-compose.$provider.yml")
+                            $requested.Add("docker-compose/$provider.yml")
                             $features = [ordered]@{ elasticsearch = $elasticsearch; kibana = $kibana; redis = $redis; 'es-limited' = $esLimited }
                             foreach ($feature in $script:stacks[$stack]) {
                                 $features[$feature] = $true
                             }
                             foreach ($feature in $features.Keys) {
                                 if ($features[$feature]) {
-                                    $requested.Add("docker-compose.$feature.yml")
+                                    $requested.Add("docker-compose/$feature.yml")
                                 }
                             }
                             $label = (@($provider) + @($features.Keys | Where-Object { $features[$_] }) + @(if ($https) { 'https' })) -join '+'
@@ -259,7 +259,7 @@ Describe 'Compose config' -Tag 'Compose' -Skip:(-not $script:hasDocker) {
             # Compose leaves a volume out of the merged config when no service mounts it.
             $hasCerts = $script:config.volumes.PSObject.Properties.Name -contains 'certs'
             if ($Https) {
-                ($ComposeFiles -contains 'docker-compose.https.yml') | Should -BeTrue
+                ($ComposeFiles -contains 'docker-compose/https.yml') | Should -BeTrue
                 # Mounted by es and Kibana, and by the platform and the storefront (the dev certificate).
                 $hasCerts | Should -Be ($Elasticsearch -or $Platform -or $Frontend)
                 if ($hasCerts) {
@@ -338,7 +338,7 @@ Describe 'Compose config' -Tag 'Compose' -Skip:(-not $script:hasDocker) {
         }
 
         It 'platform-modules is never listed without source modules' {
-            $ComposeFiles | Should -Not -Contain 'docker-compose.platform-modules.yml'
+            $ComposeFiles | Should -Not -Contain 'docker-compose/platform-modules.yml'
         }
     }
 
@@ -346,7 +346,7 @@ Describe 'Compose config' -Tag 'Compose' -Skip:(-not $script:hasDocker) {
         @{ FolderName = 'VirtoLocal' }
         @{ FolderName = 'My Stack.v2' }
     ) {
-        $folder = New-ComposeFixtureFolder -ComposeFiles 'docker-compose.yml', 'docker-compose.postgres.yml' -FolderName $FolderName
+        $folder = New-ComposeFixtureFolder -ComposeFiles 'docker-compose.yml', 'docker-compose/postgres.yml' -FolderName $FolderName
         try {
             (Invoke-ComposeConfigJson $folder).name | Should -Be (Get-ComposeProjectName $folder)
         }
@@ -359,8 +359,8 @@ Describe 'Compose config' -Tag 'Compose' -Skip:(-not $script:hasDocker) {
 Describe 'Compose V12: all links of a platform' -Tag 'Compose' -Skip:(-not $script:hasDocker) {
     It 'merges depends_on of vc-db, es and redis, each service_healthy' {
         $files = [string[]](Update-ComposeFileList -HasSourceModules $false -ComposeFiles @(
-                'docker-compose.yml', 'docker-compose.postgres.yml', 'docker-compose.platform.yml',
-                'docker-compose.elasticsearch.yml', 'docker-compose.redis.yml', 'docker-compose.frontend.yml'))
+                'docker-compose.yml', 'docker-compose/postgres.yml', 'docker-compose/platform.yml',
+                'docker-compose/elasticsearch.yml', 'docker-compose/redis.yml', 'docker-compose/frontend.yml'))
         $folder = New-ComposeFixtureFolder -ComposeFiles $files
         try {
             $dependsOn = (Invoke-ComposeConfigJson $folder).services.'vc-platform-web'.depends_on
@@ -382,7 +382,7 @@ Describe 'Compose V13: generated platform-modules' -Tag 'Compose' -Skip:(-not $s
 
             $mountPlan = Get-ModuleMountPlan -Classification (Get-ModuleSourceKind -Paths $Paths)
             $files = [string[]](Update-ComposeFileList -HasSourceModules ($mountPlan.Count -gt 0) -ComposeFiles @(
-                    'docker-compose.yml', 'docker-compose.postgres.yml', 'docker-compose.platform.yml'))
+                    'docker-compose.yml', 'docker-compose/postgres.yml', 'docker-compose/platform.yml'))
             $folder = New-ComposeFixtureFolder -ComposeFiles $files
             try {
                 Write-ModulesComposeFile -SolutionFolder $folder -MountPlan $mountPlan
@@ -451,20 +451,23 @@ Describe 'Compose V13: generated platform-modules' -Tag 'Compose' -Skip:(-not $s
 
 Describe 'Compose files' -Tag 'Compose' {
     It 'platform-modules is listed only with source modules and a platform' {
-        $base = 'docker-compose.yml', 'docker-compose.postgres.yml'
-        $withPlatform = [string[]]($base + 'docker-compose.platform.yml')
-        $modules = 'docker-compose.platform-modules.yml'
+        $base = 'docker-compose.yml', 'docker-compose/postgres.yml'
+        $withPlatform = [string[]]($base + 'docker-compose/platform.yml')
+        $modules = 'docker-compose/platform-modules.yml'
         [string[]](Update-ComposeFileList -ComposeFiles $withPlatform -HasSourceModules $true) | Should -Contain $modules
         [string[]](Update-ComposeFileList -ComposeFiles $base -HasSourceModules $true) | Should -Not -Contain $modules
         [string[]](Update-ComposeFileList -ComposeFiles $withPlatform -HasSourceModules $false) | Should -Not -Contain $modules
     }
 
-    It 'every docker-compose*.yml in the repo is in the catalog' {
+    It 'every compose file in the repo is in the catalog, and only docker-compose.yml is in the root' {
         $repositoryRoot = Get-TestRepositoryRoot
         $catalogNames = @($script:ComposeFileCatalog | ForEach-Object { $_.Name })
-        $repositoryFiles = @(Get-ChildItem -LiteralPath $repositoryRoot -Filter 'docker-compose*.yml' -File | ForEach-Object { $_.Name })
-        $repositoryFiles.Count | Should -BeGreaterThan 0
-        foreach ($name in $repositoryFiles) {
+        $rootFiles = @(Get-ChildItem -LiteralPath $repositoryRoot -Filter 'docker-compose*.yml' -File | ForEach-Object { $_.Name })
+        $rootFiles | Should -Be @('docker-compose.yml')
+        $folderFiles = @(Get-ChildItem -LiteralPath (Join-Path $repositoryRoot $script:ComposeFolderName) -Filter '*.yml' -File |
+                ForEach-Object { Get-ComposeFileName $_.Name })
+        $folderFiles.Count | Should -BeGreaterThan 20
+        foreach ($name in $rootFiles + $folderFiles) {
             $catalogNames | Should -Contain $name
         }
     }

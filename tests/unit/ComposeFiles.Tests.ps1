@@ -1,10 +1,10 @@
 BeforeAll {
     . "$PSScriptRoot/../../scripts/_init.ps1"
 
-    # Short helper: 'yml' -> 'docker-compose.yml', 'platform.https.yml' -> 'docker-compose.platform.https.yml'
+    # Short helper: 'yml' -> 'docker-compose.yml', 'platform.https.yml' -> 'docker-compose/platform.https.yml'
     function script:Compose {
         param([string[]]$Suffix)
-        [string[]]@($Suffix | ForEach-Object { if ($_ -eq 'yml') { 'docker-compose.yml' } else { "docker-compose.$_" } })
+        [string[]]@($Suffix | ForEach-Object { Get-ComposeFileName $_ })
     }
 }
 
@@ -27,9 +27,9 @@ Describe 'ComposeFiles' -Tag 'Unit' {
 
     It 'default list without HTTPS has no overlay' {
         $list = Get-DefaultComposeFiles -Provider mysql -Https $false
-        $list | Should -Not -Contain 'docker-compose.https.yml'
+        $list | Should -Not -Contain 'docker-compose/https.yml'
         $list | Where-Object { $_ -like '*.https.yml' } | Should -BeNullOrEmpty
-        $list | Should -Contain 'docker-compose.platform-mysql.yml'
+        $list | Should -Contain 'docker-compose/platform-mysql.yml'
     }
 
     It 'normalization is idempotent (<Name>)' -TestCases @(
@@ -48,58 +48,58 @@ Describe 'ComposeFiles' -Tag 'Unit' {
 
     It 'adds the platform-elasticsearch link only when both features are listed' {
         $both = Update-ComposeFileList -ComposeFiles (Compose 'yml', 'postgres.yml', 'platform.yml', 'elasticsearch.yml') -HasSourceModules $false
-        $both | Should -Contain 'docker-compose.platform-elasticsearch.yml'
+        $both | Should -Contain 'docker-compose/platform-elasticsearch.yml'
 
         $platformOnly = Update-ComposeFileList -ComposeFiles (Compose 'yml', 'postgres.yml', 'platform.yml') -HasSourceModules $false
-        $platformOnly | Should -Not -Contain 'docker-compose.platform-elasticsearch.yml'
+        $platformOnly | Should -Not -Contain 'docker-compose/platform-elasticsearch.yml'
 
         $elasticsearchOnly = Update-ComposeFileList -ComposeFiles (Compose 'yml', 'postgres.yml', 'elasticsearch.yml', 'platform-elasticsearch.yml') -HasSourceModules $false
-        $elasticsearchOnly | Should -Not -Contain 'docker-compose.platform-elasticsearch.yml'
+        $elasticsearchOnly | Should -Not -Contain 'docker-compose/platform-elasticsearch.yml'
     }
 
     It 'adds platform-modules only for a Docker platform with source modules' {
         $files = Compose 'yml', 'postgres.yml', 'platform.yml'
-        (Update-ComposeFileList -ComposeFiles $files -HasSourceModules $true) | Should -Contain 'docker-compose.platform-modules.yml'
-        (Update-ComposeFileList -ComposeFiles $files -HasSourceModules $false) | Should -Not -Contain 'docker-compose.platform-modules.yml'
+        (Update-ComposeFileList -ComposeFiles $files -HasSourceModules $true) | Should -Contain 'docker-compose/platform-modules.yml'
+        (Update-ComposeFileList -ComposeFiles $files -HasSourceModules $false) | Should -Not -Contain 'docker-compose/platform-modules.yml'
         $hostPlatform = Compose 'yml', 'postgres.yml'
-        (Update-ComposeFileList -ComposeFiles $hostPlatform -HasSourceModules $true) | Should -Not -Contain 'docker-compose.platform-modules.yml'
+        (Update-ComposeFileList -ComposeFiles $hostPlatform -HasSourceModules $true) | Should -Not -Contain 'docker-compose/platform-modules.yml'
     }
 
     It 'lists every overlay iff https.yml is listed' {
         $https = Get-DefaultComposeFiles -Provider postgres
         $plain = Set-ComposeHttps -ComposeFiles $https -Enabled $false
-        $plain | Should -Not -Contain 'docker-compose.https.yml'
+        $plain | Should -Not -Contain 'docker-compose/https.yml'
         @($plain | Where-Object { $_ -like '*.https.yml' }) | Should -HaveCount 0
-        $plain | Should -Contain 'docker-compose.platform.yml'
+        $plain | Should -Contain 'docker-compose/platform.yml'
 
         (Set-ComposeHttps -ComposeFiles $plain -Enabled $true) | Should -Be $https
     }
 
     It 'does not list an overlay whose base file is not listed' {
         $files = Update-ComposeFileList -ComposeFiles (Compose 'yml', 'https.yml', 'postgres.yml', 'platform.yml') -HasSourceModules $false
-        $files | Should -Not -Contain 'docker-compose.elasticsearch.https.yml'
-        $files | Should -Not -Contain 'docker-compose.frontend.https.yml'
-        $files | Should -Contain 'docker-compose.platform.https.yml'
+        $files | Should -Not -Contain 'docker-compose/elasticsearch.https.yml'
+        $files | Should -Not -Contain 'docker-compose/frontend.https.yml'
+        $files | Should -Contain 'docker-compose/platform.https.yml'
     }
 
     It 'skipping and re-adding elasticsearch keeps the HTTPS mode' {
         $start = Get-DefaultComposeFiles -Provider postgres
         $without = Set-ComposeFeature -ComposeFiles $start -Feature elasticsearch -Enabled $false -WarningVariable warnings -WarningAction SilentlyContinue
         $warnings | Should -HaveCount 1
-        $without | Should -Not -Contain 'docker-compose.elasticsearch.https.yml'
-        $without | Should -Not -Contain 'docker-compose.platform-elasticsearch.https.yml'
-        $without | Should -Not -Contain 'docker-compose.kibana.yml'
+        $without | Should -Not -Contain 'docker-compose/elasticsearch.https.yml'
+        $without | Should -Not -Contain 'docker-compose/platform-elasticsearch.https.yml'
+        $without | Should -Not -Contain 'docker-compose/kibana.yml'
 
         $back = Set-ComposeFeature -ComposeFiles $without -Feature elasticsearch -Enabled $true
-        $back | Should -Contain 'docker-compose.https.yml'
-        $back | Should -Contain 'docker-compose.elasticsearch.https.yml'
-        $back | Should -Contain 'docker-compose.platform-elasticsearch.https.yml'
+        $back | Should -Contain 'docker-compose/https.yml'
+        $back | Should -Contain 'docker-compose/elasticsearch.https.yml'
+        $back | Should -Contain 'docker-compose/platform-elasticsearch.https.yml'
     }
 
     It 'keeps unknown files after built-in files in their order' {
-        $input = [string[]]@('my.override.yml', 'docker-compose.redis.yml', 'x.yml', 'docker-compose.yml', 'docker-compose.postgres.yml')
+        $input = [string[]]@('my.override.yml', 'docker-compose/redis.yml', 'x.yml', 'docker-compose.yml', 'docker-compose/postgres.yml')
         $result = Update-ComposeFileList -ComposeFiles $input -HasSourceModules $false
-        $result | Should -Be ([string[]]@('docker-compose.yml', 'docker-compose.postgres.yml', 'docker-compose.redis.yml', 'my.override.yml', 'x.yml'))
+        $result | Should -Be ([string[]]@('docker-compose.yml', 'docker-compose/postgres.yml', 'docker-compose/redis.yml', 'my.override.yml', 'x.yml'))
     }
 
     It 'reports unknown files in Get-ComposeFeatures' {
@@ -137,15 +137,15 @@ Describe 'ComposeFiles' -Tag 'Unit' {
 
     It 'drops kibana with a warning without elasticsearch' {
         $result = Update-ComposeFileList -ComposeFiles (Compose 'yml', 'postgres.yml', 'kibana.yml') -HasSourceModules $false -WarningVariable warnings -WarningAction SilentlyContinue
-        $result | Should -Not -Contain 'docker-compose.kibana.yml'
-        $result | Should -Not -Contain 'docker-compose.kibana-elasticsearch.yml'
+        $result | Should -Not -Contain 'docker-compose/kibana.yml'
+        $result | Should -Not -Contain 'docker-compose/kibana-elasticsearch.yml'
         $warnings | Should -HaveCount 1
         "$($warnings[0])" | Should -BeLike '*kibana*elasticsearch*'
     }
 
     It 'drops es-limited with a warning without elasticsearch' {
         $result = Update-ComposeFileList -ComposeFiles (Compose 'yml', 'postgres.yml', 'es-limited.yml') -HasSourceModules $false -WarningVariable warnings -WarningAction SilentlyContinue
-        $result | Should -Not -Contain 'docker-compose.es-limited.yml'
+        $result | Should -Not -Contain 'docker-compose/es-limited.yml'
         $warnings | Should -HaveCount 1
         "$($warnings[0])" | Should -BeLike '*es-limited*elasticsearch*'
     }
@@ -157,35 +157,41 @@ Describe 'ComposeFiles' -Tag 'Unit' {
 
     It 'adds frontend-hostplatform when the frontend is listed without the platform' {
         $result = Update-ComposeFileList -ComposeFiles (Compose 'yml', 'postgres.yml', 'frontend.yml') -HasSourceModules $false
-        $result | Should -Contain 'docker-compose.frontend-hostplatform.yml'
-        $result | Should -Not -Contain 'docker-compose.platform-frontend.yml'
-        $result[-1] | Should -BeExactly 'docker-compose.frontend-hostplatform.yml'
+        $result | Should -Contain 'docker-compose/frontend-hostplatform.yml'
+        $result | Should -Not -Contain 'docker-compose/platform-frontend.yml'
+        $result[-1] | Should -BeExactly 'docker-compose/frontend-hostplatform.yml'
 
         $withPlatform = Update-ComposeFileList -ComposeFiles (Compose 'yml', 'postgres.yml', 'platform.yml', 'frontend.yml', 'frontend-hostplatform.yml') -HasSourceModules $false
-        $withPlatform | Should -Not -Contain 'docker-compose.frontend-hostplatform.yml'
-        $withPlatform | Should -Contain 'docker-compose.platform-frontend.yml'
+        $withPlatform | Should -Not -Contain 'docker-compose/frontend-hostplatform.yml'
+        $withPlatform | Should -Contain 'docker-compose/platform-frontend.yml'
     }
 
     It 'Set-ComposeProvider swaps the provider and its link' {
         $result = Set-ComposeProvider -ComposeFiles (Get-DefaultComposeFiles -Provider postgres) -Provider sqlserver
         $result | Should -Be (Get-DefaultComposeFiles -Provider sqlserver)
-        $result | Should -Not -Contain 'docker-compose.platform-postgres.yml'
+        $result | Should -Not -Contain 'docker-compose/platform-postgres.yml'
     }
 
     It 'Set-ComposeFeature preserves source modules and rejects unknown features' {
         $files = Update-ComposeFileList -ComposeFiles (Get-DefaultComposeFiles -Provider postgres) -HasSourceModules $true
-        $files | Should -Contain 'docker-compose.platform-modules.yml'
-        (Set-ComposeFeature -ComposeFiles $files -Feature redis -Enabled $false) | Should -Contain 'docker-compose.platform-modules.yml'
+        $files | Should -Contain 'docker-compose/platform-modules.yml'
+        (Set-ComposeFeature -ComposeFiles $files -Feature redis -Enabled $false) | Should -Contain 'docker-compose/platform-modules.yml'
         { Set-ComposeFeature -ComposeFiles $files -Feature nope -Enabled $true } | Should -Throw
     }
 
     Context 'file list value' {
         It 'splits and joins with the separator' {
-            $list = Get-ComposeFileList -Value ' docker-compose.yml ;docker-compose.postgres.yml;;'
-            $list | Should -Be @('docker-compose.yml', 'docker-compose.postgres.yml')
-            ConvertTo-ComposeFileValue -ComposeFiles $list | Should -BeExactly 'docker-compose.yml;docker-compose.postgres.yml'
-            ConvertTo-ComposeFileValue -ComposeFiles $list -Separator ':' | Should -BeExactly 'docker-compose.yml:docker-compose.postgres.yml'
+            $list = Get-ComposeFileList -Value ' docker-compose.yml ;docker-compose/postgres.yml;;'
+            $list | Should -Be @('docker-compose.yml', 'docker-compose/postgres.yml')
+            ConvertTo-ComposeFileValue -ComposeFiles $list | Should -BeExactly 'docker-compose.yml;docker-compose/postgres.yml'
+            ConvertTo-ComposeFileValue -ComposeFiles $list -Separator ':' | Should -BeExactly 'docker-compose.yml:docker-compose/postgres.yml'
             (Get-ComposeFileList -Value 'a.yml:b.yml' -Separator ':') | Should -Be @('a.yml', 'b.yml')
+        }
+
+        It 'reads a hand-written backslash as the catalog''s forward slash' {
+            $list = Get-ComposeFileList -Value 'docker-compose.yml;docker-compose\postgres.yml'
+            $list | Should -Be @('docker-compose.yml', 'docker-compose/postgres.yml')
+            (Get-ComposeFeatures -ComposeFiles $list).Provider | Should -Be 'postgres'
         }
 
         It 'returns an empty array for an empty value' {
@@ -206,8 +212,8 @@ Describe 'ComposeFiles' -Tag 'Unit' {
             Resolve-DbProvider -ComposeFiles $empty | Should -BeNullOrEmpty
             (Get-ComposeFeatures -ComposeFiles $empty).Platform | Should -BeFalse
             ConvertTo-ComposeFileValue -ComposeFiles $empty | Should -BeExactly ''
-            (Set-ComposeProvider -ComposeFiles $empty -Provider mysql) | Should -Contain 'docker-compose.mysql.yml'
-            (Set-ComposeHttps -ComposeFiles $empty -Enabled $true) | Should -Contain 'docker-compose.https.yml'
+            (Set-ComposeProvider -ComposeFiles $empty -Provider mysql) | Should -Contain 'docker-compose/mysql.yml'
+            (Set-ComposeHttps -ComposeFiles $empty -Enabled $true) | Should -Contain 'docker-compose/https.yml'
         }
     }
 

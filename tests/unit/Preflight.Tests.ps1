@@ -6,14 +6,14 @@ BeforeAll {
         # The normalized file list of a stack: base, postgres, platform and the named extras.
         param([string[]]$Extra = @())
 
-        [string[]]@('docker-compose.yml', 'docker-compose.postgres.yml', 'docker-compose.platform.yml') + $Extra
+        [string[]]@('docker-compose.yml', 'docker-compose/postgres.yml', 'docker-compose/platform.yml') + $Extra
     }
 
     function New-PreflightEnv {
         param([hashtable]$Override = @{})
 
         $values = [ordered]@{
-            COMPOSE_FILE     = 'docker-compose.yml;docker-compose.postgres.yml;docker-compose.platform.yml'
+            COMPOSE_FILE     = 'docker-compose.yml;docker-compose/postgres.yml;docker-compose/platform.yml'
             RELEASE_CHANNEL  = 'stable'
             PGSQL_PORT       = '5432'
             MYSQL_PORT       = '3306'
@@ -34,7 +34,7 @@ BeforeAll {
 Describe 'Preflight' -Tag 'Unit' {
     Context 'Get-RequiredPorts' {
         It 'follows COMPOSE_FILE: postgres, platform and redis need only their own ports' {
-            $files = New-PreflightFiles -Extra 'docker-compose.redis.yml'
+            $files = New-PreflightFiles -Extra 'docker-compose/redis.yml'
 
             $ports = Get-RequiredPorts -EnvValues (New-PreflightEnv) -ComposeFiles $files
 
@@ -46,7 +46,7 @@ Describe 'Preflight' -Tag 'Unit' {
             @{ Provider = 'mysql'; Key = 'MYSQL_PORT'; Port = 3306 }
             @{ Provider = 'sqlserver'; Key = 'MSSQL_PORT'; Port = 1433 }
         ) {
-            $files = [string[]]@('docker-compose.yml', "docker-compose.$Provider.yml")
+            $files = [string[]]@('docker-compose.yml', "docker-compose/$Provider.yml")
 
             $ports = Get-RequiredPorts -EnvValues (New-PreflightEnv) -ComposeFiles $files
 
@@ -56,7 +56,7 @@ Describe 'Preflight' -Tag 'Unit' {
         }
 
         It 'maps elasticsearch, kibana and the storefront' {
-            $files = New-PreflightFiles -Extra 'docker-compose.elasticsearch.yml', 'docker-compose.kibana.yml', 'docker-compose.frontend.yml'
+            $files = New-PreflightFiles -Extra 'docker-compose/elasticsearch.yml', 'docker-compose/kibana.yml', 'docker-compose/frontend.yml'
 
             $ports = Get-RequiredPorts -EnvValues (New-PreflightEnv) -ComposeFiles $files
 
@@ -64,7 +64,7 @@ Describe 'Preflight' -Tag 'Unit' {
         }
 
         It 'a source platform still requires PLATFORM_PORT' {
-            $files = [string[]]@('docker-compose.yml', 'docker-compose.postgres.yml')
+            $files = [string[]]@('docker-compose.yml', 'docker-compose/postgres.yml')
             $values = New-PreflightEnv @{ PLATFORM_SOURCE_PATH = '/src/vc-platform' }
 
             $ports = Get-RequiredPorts -EnvValues $values -ComposeFiles $files
@@ -73,7 +73,7 @@ Describe 'Preflight' -Tag 'Unit' {
         }
 
         It 'a skipped source platform needs no PLATFORM_PORT' {
-            $files = [string[]]@('docker-compose.yml', 'docker-compose.postgres.yml')
+            $files = [string[]]@('docker-compose.yml', 'docker-compose/postgres.yml')
             $values = New-PreflightEnv @{ PLATFORM_SOURCE_PATH = '/src/vc-platform'; SKIP_PLATFORM = 'true' }
 
             $ports = Get-RequiredPorts -EnvValues $values -ComposeFiles $files
@@ -125,7 +125,7 @@ Describe 'Preflight' -Tag 'Unit' {
         }
 
         It 'gives HTTPS URLs with the https mode file, and the storefront on its port' {
-            $files = [string[]]@('docker-compose.yml', 'docker-compose.https.yml', 'docker-compose.postgres.yml', 'docker-compose.platform.yml', 'docker-compose.frontend.yml')
+            $files = [string[]]@('docker-compose.yml', 'docker-compose/https.yml', 'docker-compose/postgres.yml', 'docker-compose/platform.yml', 'docker-compose/frontend.yml')
 
             $urls = Get-ServiceUrls -EnvValues (New-PreflightEnv) -ComposeFiles $files
 
@@ -134,15 +134,15 @@ Describe 'Preflight' -Tag 'Unit' {
         }
 
         It 'lists Kibana only when its file is listed' {
-            $without = Get-ServiceUrls -EnvValues (New-PreflightEnv) -ComposeFiles (New-PreflightFiles -Extra 'docker-compose.elasticsearch.yml')
-            $with = Get-ServiceUrls -EnvValues (New-PreflightEnv) -ComposeFiles (New-PreflightFiles -Extra 'docker-compose.elasticsearch.yml', 'docker-compose.kibana.yml')
+            $without = Get-ServiceUrls -EnvValues (New-PreflightEnv) -ComposeFiles (New-PreflightFiles -Extra 'docker-compose/elasticsearch.yml')
+            $with = Get-ServiceUrls -EnvValues (New-PreflightEnv) -ComposeFiles (New-PreflightFiles -Extra 'docker-compose/elasticsearch.yml', 'docker-compose/kibana.yml')
 
             $without.Name | Should -Not -Contain 'Kibana'
             ($with | Where-Object { $_.Name -eq 'Kibana' }).Url | Should -Be 'http://localhost:5601'
         }
 
         It 'lists the platform of a source run, and no platform when there is none' {
-            $files = [string[]]@('docker-compose.yml', 'docker-compose.postgres.yml')
+            $files = [string[]]@('docker-compose.yml', 'docker-compose/postgres.yml')
 
             $source = Get-ServiceUrls -EnvValues (New-PreflightEnv @{ PLATFORM_SOURCE_PATH = '/src/vc-platform' }) -ComposeFiles $files
             $none = Get-ServiceUrls -EnvValues (New-PreflightEnv) -ComposeFiles $files
@@ -305,7 +305,7 @@ Describe 'Source platform preflight' -Tag 'Unit' {
             param([string]$PlatformPath, [hashtable]$Override = @{})
 
             $values = [ordered]@{
-                COMPOSE_FILE         = 'docker-compose.yml;docker-compose.postgres.yml'
+                COMPOSE_FILE         = 'docker-compose.yml;docker-compose/postgres.yml'
                 RELEASE_CHANNEL      = 'stable'
                 PLATFORM_SOURCE_PATH = $PlatformPath
                 PLATFORM_PORT        = '8090'
@@ -316,7 +316,7 @@ Describe 'Source platform preflight' -Tag 'Unit' {
             $values
         }
 
-        $script:sourceStack = [string[]]@('docker-compose.yml', 'docker-compose.postgres.yml')
+        $script:sourceStack = [string[]]@('docker-compose.yml', 'docker-compose/postgres.yml')
     }
 
     BeforeEach {
@@ -368,7 +368,7 @@ Describe 'Source platform preflight' -Tag 'Unit' {
     }
 
     It 'checks nothing about a source platform for a Docker platform' {
-        $files = [string[]]@('docker-compose.yml', 'docker-compose.postgres.yml', 'docker-compose.platform.yml')
+        $files = [string[]]@('docker-compose.yml', 'docker-compose/postgres.yml', 'docker-compose/platform.yml')
 
         $errors = Invoke-Preflight -EnvValues (New-SourceEnv '') -ComposeFiles $files -NonInteractive $true
 
@@ -419,7 +419,7 @@ Describe 'Source platform preflight' -Tag 'Unit' {
 
         It 'does not ask when the platform runs in Docker (the sources are bind-mounted)' {
             $web = New-ModuleFolder 'A.Web' 'VirtoCommerce.A'
-            $files = [string[]]@('docker-compose.yml', 'docker-compose.postgres.yml', 'docker-compose.platform.yml')
+            $files = [string[]]@('docker-compose.yml', 'docker-compose/postgres.yml', 'docker-compose/platform.yml')
             Mock Test-SymlinkRights { $false }
 
             $errors = Invoke-Preflight -EnvValues (New-SourceEnv '' @{ MODULE_SOURCE_PATHS = $web }) -ComposeFiles $files -NonInteractive $true

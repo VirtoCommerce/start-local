@@ -62,7 +62,7 @@ try {
     # The plan is computed here, but the file changes only together with COMPOSE_FILE below: Compose fails at project load
     # when .env lists a missing file, so a deletion before the preflight could strand a running stack.
     $mountPlan = @()
-    if ($listedFiles -ccontains 'docker-compose.platform.yml') {
+    if ($listedFiles -ccontains (Get-ComposeFileName 'platform.yml')) {
         $mountPlan = Get-ModuleMountPlan -Classification (Get-ModuleSourceKind -Paths (Split-ModuleSourcePaths ([string]$envValues['MODULE_SOURCE_PATHS'])))
     }
     $composeFiles = Update-ComposeFileList -ComposeFiles $listedFiles -HasSourceModules ($mountPlan.Count -gt 0)

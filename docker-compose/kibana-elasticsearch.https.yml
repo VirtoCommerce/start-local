@@ -1,4 +1,4 @@
-# Overlay of docker-compose.kibana-elasticsearch.yml: Kibana signs in to Elasticsearch over TLS, trusting the setup CA.
+# Overlay of kibana-elasticsearch.yml: Kibana signs in to Elasticsearch over TLS, trusting the setup CA.
 # A separate overlay, because a link listed after kibana.https.yml would override ELASTICSEARCH_HOSTS.
 services:
 
