@@ -410,3 +410,26 @@ The original text above is unchanged. These corrections came up while checking t
 - **§8.1, build step 3:** start also exports the dev certificate when the export is missing, before copying it into the certificates volume. A folder built in HTTP mode can then switch to HTTPS without a rebuild.
 - **§15, new fact to verify:** whether Elasticsearch accepts `ELASTIC_PASSWORD` when security is first turned on over data created with security off, and keeps the data across repeated mode switches. Plan Task 14, step 7.
 - **Not part of this redesign:** a rebuild on another release channel leaves the old modules in the `modules-data` volume. The fix (dropping that one volume, never the DB, Elasticsearch or CMS volumes) belongs to the separate update PR.
+
+### 2026-11-11: corrections from implementation (execute phase)
+
+The original text above is unchanged. These corrections came up while implementing the [plan](../plans/2026-11-10-env-first-redesign.md); each was verified with tests, and the live ones on a scratch stack. The R numbers are the executor's rulings.
+
+- **§8.1, start step 8 (R31):** sample data runs first, then the admin password (C1), the reverse of the text above.
+  - The sample data's `Users` section carries the `admin` account with the hash of `store`. The Backup & Restore import updates the existing admin with it, so a password applied before the import is undone.
+  - Verified live: with the old order, after the first non-interactive start `ADMIN_PASSWORD` was refused and `store` accepted. With the new order `ADMIN_PASSWORD` is accepted and `store` refused.
+  - C1 and P10 are unchanged: the sign-in candidates are still `ADMIN_PASSWORD`, then `store`. Plan Task 11 Step 3 lists the old order. (Commit 87b10cf.)
+- **§8.1, remove (R34):** remove, both full and `-keepData`, first stops the source-run platform when its pid file exists, as stop does.
+  - Otherwise remove deletes the pid file while the platform keeps running, and no script can find that process again. (Commit 89d3663.)
+- **§8 *Optional files* and §9 (R35):** a `.env` without `START_LOCAL_LAYOUT` counts as written by a wrapper (layout 2: missing keys are added and the marker is written) only when it sets a non-empty `COMPOSE_FILE`.
+  - A layout-1 file never has one. Any other `.env` without the marker goes to migration unchanged, as §9 says ("a missing key means layout 1").
+  - The installer must not write `START_LOCAL_LAYOUT` to a layout-1 file before migration has run. Otherwise a folder from before `DB_PROVIDER` existed would be relabelled instead of migrated. It would lose `VOLUME_PREFIX=virto` and its data would be orphaned.
+  - Contract for a cloud wrapper: write `COMPOSE_FILE`, or `START_LOCAL_LAYOUT=2`. A wrapper `.env` with neither fails with migration's "`DB_PROVIDER` is missing" message. (Commit 1ffc8f7.)
+- **§12, CI (R40):** the unit and Compose jobs skip docs-only changes with a job-level `if:`.
+  - GitHub evaluates that condition before it expands the matrix, so a skipped matrix job never reports its per-OS checks (`unit (ubuntu-24.04)` and so on). A branch rule that requires them would wait forever.
+  - An aggregator job, `ci-result`, depends on every test job, always runs, and fails only when one of them failed or was cancelled. A skipped job counts as a pass.
+  - `ci-result` is the one check to require in branch protection.
+  - The docs-only gate errs toward running the tests: if it cannot read the changed files, the tests run. (Commit b3e0165.)
+- **§12, Smoke (R42):** the smoke scripts pull images with `docker compose pull --ignore-pull-failures`, not `--ignore-buildable`.
+  - The platform and storefront services name a locally built `image:` and have no `build:` section. So `--ignore-buildable` still tries to pull them from the registry, exits 1, and stops the other pulls.
+  - A public image that really is missing therefore fails at `docker compose up`, not at the pull. (Commit 4eb0311.)
