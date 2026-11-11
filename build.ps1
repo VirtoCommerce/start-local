@@ -150,7 +150,14 @@ try {
 
         try {
             Write-Host "Building backend ($($channel.Normalized))..." -ForegroundColor Yellow
-            $vcBuildArguments = Get-VcBuildInstallArgs $channel $customPackagesJsonPath (Join-Path $publishDir 'modules') (Join-Path $publishDir 'app_data/modules') $publishDir
+            # A modules folder in MODULE_SOURCE_PATHS is bind-mounted over the image's modules, so vc-build installs into it (SPEC §7.3).
+            $moduleSources = Get-ModuleSourceKind -Paths (Split-ModuleSourcePaths (Get-EnvValue -Document $document -Key 'MODULE_SOURCE_PATHS'))
+            $discoveryPath = Join-Path $publishDir 'modules'
+            if ($moduleSources.Kind -eq 'modulesfolder') {
+                $discoveryPath = $moduleSources.Entries[0].Path
+                Write-Host "Installing the modules into $discoveryPath (MODULE_SOURCE_PATHS)." -ForegroundColor Yellow
+            }
+            $vcBuildArguments = Get-VcBuildInstallArgs $channel $customPackagesJsonPath $discoveryPath (Join-Path $publishDir 'app_data/modules') $publishDir
             & vc-build @vcBuildArguments
             Assert-NativeSuccess 'vc-build install'
             Write-Host '... Backend built successfully' -ForegroundColor Green

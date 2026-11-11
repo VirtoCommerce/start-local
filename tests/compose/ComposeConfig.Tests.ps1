@@ -373,6 +373,81 @@ Describe 'Compose V12: all links of a platform' -Tag 'Compose' -Skip:(-not $scri
     }
 }
 
+Describe 'Compose V13: generated platform-modules' -Tag 'Compose' -Skip:(-not $script:hasDocker) {
+    BeforeAll {
+        function script:Get-PlatformModulesVolumes {
+            # The platform's volumes of a stack with the generated file for $Paths, by mount target.
+            param([string[]]$Paths)
+
+            $mountPlan = Get-ModuleMountPlan -Classification (Get-ModuleSourceKind -Paths $Paths)
+            $files = [string[]](Update-ComposeFileList -HasSourceModules ($mountPlan.Count -gt 0) -ComposeFiles @(
+                    'docker-compose.yml', 'docker-compose.postgres.yml', 'docker-compose.platform.yml'))
+            $folder = New-ComposeFixtureFolder -ComposeFiles $files
+            try {
+                Write-ModulesComposeFile -SolutionFolder $folder -MountPlan $mountPlan
+                $volumes = (Invoke-ComposeConfigJson $folder).services.'vc-platform-web'.volumes
+                $byTarget = @{}
+                foreach ($volume in $volumes) {
+                    $byTarget[$volume.target] = $volume
+                }
+                $byTarget
+            }
+            finally {
+                Remove-Item -LiteralPath (Split-Path $folder -Parent) -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+
+        function script:New-SourceFolder {
+            param([string]$Name, [string]$ModuleId)
+            $path = Join-Path $TestDrive $Name
+            $null = New-Item -ItemType Directory -Path $path -Force
+            if ($ModuleId) {
+                Set-Content -LiteralPath (Join-Path $path 'module.manifest') -Value "<module><id>$ModuleId</id></module>"
+            }
+            $path
+        }
+    }
+
+    It 'a modules folder is the bind source at the modules path, not modules-data (volumes merge by target)' {
+        $modules = New-SourceFolder 'modules'
+
+        $volumes = Get-PlatformModulesVolumes -Paths @($modules)
+
+        $volume = $volumes['/opt/virtocommerce/platform/modules']
+        $volume.type | Should -Be 'bind'
+        ($volume.source -replace '\\', '/') | Should -Be ($modules -replace '\\', '/')
+        @($volumes.Values | Where-Object { $_.type -eq 'volume' -and $_.source -like '*modules-data' }).Count | Should -Be 0
+        $volumes['/opt/virtocommerce/platform/wwwroot/cms-content'].type | Should -Be 'volume'
+    }
+
+    It '*.Web folders are bind mounts under the modules-data volume, one per module id' {
+        $catalog = New-SourceFolder 'Catalog.Web' 'VirtoCommerce.Catalog'
+        $cart = New-SourceFolder 'Cart.Web' 'VirtoCommerce.Cart'
+
+        $volumes = Get-PlatformModulesVolumes -Paths @($catalog, $cart)
+
+        $volumes['/opt/virtocommerce/platform/modules'].type | Should -Be 'volume'
+        $volumes['/opt/virtocommerce/platform/modules/VirtoCommerce.Catalog'].type | Should -Be 'bind'
+        $volumes['/opt/virtocommerce/platform/modules/VirtoCommerce.Cart'].type | Should -Be 'bind'
+        ($volumes['/opt/virtocommerce/platform/modules/VirtoCommerce.Cart'].source -replace '\\', '/') | Should -Be ($cart -replace '\\', '/')
+    }
+
+    It 'no source modules leaves the modules-data volume alone' {
+        $volumes = Get-PlatformModulesVolumes -Paths @()
+
+        $volumes['/opt/virtocommerce/platform/modules'].type | Should -Be 'volume'
+        $volumes.Keys | Should -Not -Contain '/opt/virtocommerce/platform/modules/VirtoCommerce.Catalog'
+    }
+
+    It 'a path with a dollar sign reaches Compose literally' {
+        $folder = New-SourceFolder 'cost$HOME' 'VirtoCommerce.Catalog'
+
+        $volumes = Get-PlatformModulesVolumes -Paths @($folder)
+
+        $volumes['/opt/virtocommerce/platform/modules/VirtoCommerce.Catalog'].source | Should -Match '\$HOME$'
+    }
+}
+
 Describe 'Compose files' -Tag 'Compose' {
     It 'platform-modules is listed only with source modules and a platform' {
         $base = 'docker-compose.yml', 'docker-compose.postgres.yml'

@@ -57,7 +57,15 @@ try {
     # The preflight reads the values as the user left them: normalizing an empty COMPOSE_FILE would hide that it is missing.
     $envValues = Get-EnvTable -Document $document
     $listedFiles = Get-ComposeFileList ([string]$envValues['COMPOSE_FILE']) $separator
-    $composeFiles = Update-ComposeFileList -ComposeFiles $listedFiles -HasSourceModules (Test-ComposeHasSourceModules $listedFiles)
+    # P16: the source modules' bind mounts live in a generated compose file, written or removed on every run. Only a
+    # Docker platform mounts them; a mixed or invalid MODULE_SOURCE_PATHS gives no mounts here and is reported by the preflight.
+    # The plan is computed here, but the file changes only together with COMPOSE_FILE below: Compose fails at project load
+    # when .env lists a missing file, so a deletion before the preflight could strand a running stack.
+    $mountPlan = @()
+    if ($listedFiles -ccontains 'docker-compose.platform.yml') {
+        $mountPlan = Get-ModuleMountPlan -Classification (Get-ModuleSourceKind -Paths (Split-ModuleSourcePaths ([string]$envValues['MODULE_SOURCE_PATHS'])))
+    }
+    $composeFiles = Update-ComposeFileList -ComposeFiles $listedFiles -HasSourceModules ($mountPlan.Count -gt 0)
 
     Write-Host 'Checking the environment...' -ForegroundColor Yellow
     $preflightErrors = Invoke-Preflight -EnvValues $envValues -ComposeFiles $composeFiles -NonInteractive $isNonInteractive
@@ -69,6 +77,7 @@ try {
     }
     Write-Host '... environment is ready' -ForegroundColor Green
 
+    Write-ModulesComposeFile -SolutionFolder $solutionPath -MountPlan $mountPlan
     Set-EnvValue -Document $document -Key 'COMPOSE_FILE' -Value (ConvertTo-ComposeFileValue $composeFiles $separator)
     Write-EnvFile -Document $document -Path $envPath
     $features = Get-ComposeFeatures -ComposeFiles $composeFiles

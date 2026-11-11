@@ -3,6 +3,7 @@
 
 . "$PSScriptRoot/env-file.ps1"
 . "$PSScriptRoot/compose-files.ps1"
+. "$PSScriptRoot/source-mode.ps1"
 . "$PSScriptRoot/release-channel.ps1"
 . "$PSScriptRoot/options.ps1"
 . "$PSScriptRoot/migrate.ps1"

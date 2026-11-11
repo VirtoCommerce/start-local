@@ -190,6 +190,26 @@ function Invoke-Preflight {
         }
     }
 
+    $moduleSources = Get-ModuleSourceKind -Paths (Split-ModuleSourcePaths ([string]$EnvValues['MODULE_SOURCE_PATHS']))
+    if ($moduleSources.Kind -in 'mixed', 'invalid') {
+        $errors.Add($moduleSources.Message)
+    }
+    elseif ($dockerRunning -and (Get-ComposeFeatures -ComposeFiles $ComposeFiles).Platform) {
+        # Only a Docker platform bind-mounts the sources (SPEC §7.3), and Docker Desktop refuses folders outside its File Sharing list.
+        foreach ($mount in (Get-ModuleMountPlan -Classification $moduleSources)) {
+            try {
+                $shared = Test-FileSharing -Path $mount.Source
+            }
+            catch {
+                $errors.Add("File sharing: could not check whether Docker can mount '$($mount.Source)' (MODULE_SOURCE_PATHS): $($_.Exception.Message)")
+                continue
+            }
+            if (-not $shared) {
+                $errors.Add("File sharing: Docker cannot mount '$($mount.Source)' (MODULE_SOURCE_PATHS). Add its folder to Docker Desktop > Settings > Resources > File sharing, then run again.")
+            }
+        }
+    }
+
     if ($NonInteractive) {
         foreach ($key in (Get-MissingRequiredKeys -EnvValues $EnvValues)) {
             $errors.Add("$key is empty in .env. Set it, or pass the matching parameter.")
