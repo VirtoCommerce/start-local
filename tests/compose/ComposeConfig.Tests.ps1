@@ -204,7 +204,8 @@ Describe 'Compose config' -Tag 'Compose' -Skip:(-not $script:hasDocker) {
             }
             else {
                 $frontend.environment.PLATFORM_UPSTREAM | Should -Be 'host.docker.internal:8090'
-                @($frontend.extra_hosts) | Should -Contain 'host.docker.internal=host-gateway'
+                # Compose v2.18.0 renders extra_hosts as 'host:ip', newer releases as 'host=ip'.
+                @($frontend.extra_hosts | ForEach-Object { $_ -replace '^host\.docker\.internal:', 'host.docker.internal=' }) | Should -Contain 'host.docker.internal=host-gateway'
                 $frontend.PSObject.Properties.Name | Should -Not -Contain 'depends_on'
             }
             $mode = if ($Https) { 'https' } else { 'http' }

@@ -1,0 +1,126 @@
+# CI for the unit and compose test tiers (SPEC §12, decision G1).
+# The Compose tier needs only the docker CLI, not a daemon (docker compose config), so macOS runs it without colima.
+name: ci
+on:
+  push:
+    branches: [dev, 'release/**']
+  pull_request:
+  workflow_dispatch:
+permissions: { contents: read }
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+defaults: { run: { shell: bash } }
+jobs:
+  # Docs-only changes skip the test jobs. A job-level `if:` is used instead of `paths-ignore` (CIR §6), but the `if:`
+  # is evaluated before the matrix expands, so a skipped matrix job reports no per-OS checks and a rule requiring
+  # them would stay "Pending". Require the `ci-result` aggregator job instead: it always runs and reports.
+  changes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Detect code changes
+        id: diff
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          # Anything that cannot be compared (manual run, new branch, rewritten history) counts as a code change.
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] || [ -z "$BASE_SHA" ] || ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # The file list is captured first and grep reads it without -q, so no writer is left on a closed pipe
+          # (SIGPIPE plus pipefail would otherwise report "docs-only" for a large code change). A failing diff runs the tests.
+          if ! files=$(git diff --name-only "$BASE_SHA" "$GITHUB_SHA"); then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if grep -Ev '\.md$|^docs/|^LICENSE' <<< "$files" > /dev/null; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+            echo "Docs-only change: tests skipped."
+          fi
+
+  unit:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unit tier
+        run: pwsh -NoProfile -File tests/Invoke-Tests.ps1 -Tier Unit
+
+  compose:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Docker CLI and Compose (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install docker docker-compose
+          mkdir -p ~/.docker
+          echo '{"cliPluginsExtraDirs":["'"$(brew --prefix)"'/lib/docker/cli-plugins"]}' > ~/.docker/config.json
+          docker compose version
+      - name: Hide the Windows-container daemon (Windows)
+        # The Windows daemon runs Windows containers only, so the daemon-only tests, which run a Linux alpine image,
+        # cannot work there. An unreachable DOCKER_HOST makes them skip themselves; `docker compose config` needs no daemon.
+        if: runner.os == 'Windows'
+        run: echo "DOCKER_HOST=tcp://127.0.0.1:1" >> "$GITHUB_ENV"
+      - name: Compose tier
+        run: pwsh -NoProfile -File tests/Invoke-Tests.ps1 -Tier Compose
+
+  # SPEC §15 #1: Compose v2.18.0 is the supported minimum.
+  compose-min:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      COMPOSE_MIN_URL: https://github.com/docker/compose/releases/download/v2.18.0
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Compose v2.18.0
+        run: |
+          mkdir -p "$RUNNER_TEMP/compose-min"
+          cd "$RUNNER_TEMP/compose-min"
+          curl -fsSLO "$COMPOSE_MIN_URL/docker-compose-linux-x86_64"
+          curl -fsSLO "$COMPOSE_MIN_URL/docker-compose-linux-x86_64.sha256"
+          sha256sum --check docker-compose-linux-x86_64.sha256
+          chmod +x docker-compose-linux-x86_64
+          ./docker-compose-linux-x86_64 version
+          echo "SL_COMPOSE_BINARY=$RUNNER_TEMP/compose-min/docker-compose-linux-x86_64" >> "$GITHUB_ENV"
+      - name: Compose tier on Compose v2.18.0
+        run: pwsh -NoProfile -File tests/Invoke-Tests.ps1 -Tier Compose
+
+  # The one check to require in branch protection: it runs even when the test jobs are skipped (docs-only change).
+  ci-result:
+    needs: [changes, unit, compose, compose-min]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Fail when any job failed or was cancelled
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Job results: $RESULTS"
+          case " $RESULTS " in
+            *" failure "* | *" cancelled "*) exit 1 ;;
+          esac
