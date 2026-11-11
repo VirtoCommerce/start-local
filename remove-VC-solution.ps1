@@ -1,90 +1,28 @@
-param (
-    [string]$solutionFolder = "VirtoLocal"
+# Guard: this script was renamed in start-local 2.0. It reads only .env, runs nothing else and loads no helpers,
+# so it also works from Windows PowerShell 5.1 and with any arguments an old installer passed.
+param(
+    [Parameter(ValueFromRemainingArguments)]
+    $remaining
 )
 
-$dockerComposePath = "$solutionFolder/docker-compose.yml"
-if (-not (Test-Path -Path $dockerComposePath)) {
-    Write-Host "Error: Docker compose file not found: $dockerComposePath" -ForegroundColor Red
+$newName = 'remove.ps1'
+
+$layout = 1
+$envPath = Join-Path $PSScriptRoot '.env'
+if (Test-Path -LiteralPath $envPath -PathType Leaf) {
+    $match = [regex]::Match((Get-Content -LiteralPath $envPath -Raw), '(?m)^\s*START_LOCAL_LAYOUT\s*=\s*["'']?(\d+)')
+    if ($match.Success) {
+        $layout = [int]$match.Groups[1].Value
+    }
+}
+
+if ($layout -ge 2) {
+    Write-Host "$($MyInvocation.MyCommand.Name) was renamed to $newName. Run .\$newName instead; nothing was done." -ForegroundColor Yellow
     exit 1
 }
 
-. "$solutionFolder/scripts/docker-compose-helper.ps1"
-
-# Merge ALL provider override files into a single 'down -v' call.
-# The merged top-level volumes section will declare all DB volumes
-# (postgres_data, mysql_data, mssql_data), so 'down -v' removes them
-# all in one call regardless of which provider is currently active in .env.
-$validProviders = @("postgres", "mysql", "sqlserver")
-$composeArgs = @("-f", $dockerComposePath)
-foreach ($provider in $validProviders) {
-    $providerOverridePath = "$solutionFolder/docker-compose.$provider.yml"
-    if (-not (Test-Path -Path $providerOverridePath)) {
-        Write-Host "  - Override file not found, skipping: $providerOverridePath" -ForegroundColor DarkYellow
-        continue
-    }
-    $composeArgs += "-f"
-    $composeArgs += $providerOverridePath
-}
-$composeArgs += @("down", "-v", "--remove-orphans")
-
-Write-Host "Stopping and removing VC solution from docker (all providers, all volumes)..." -ForegroundColor Yellow
-Invoke-DockerCompose @composeArgs
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Warning: docker compose down returned exit code $LASTEXITCODE" -ForegroundColor Yellow
-}
-
-# Safety net: explicitly remove any project volume that might still exist.
-# All compose volumes are explicitly named with a 'virto_' prefix in the compose files,
-# so we can target them by exact name without relying on the compose project name.
-$projectVolumes = @(
-    "virto_postgres_data",
-    "virto_mysql_data",
-    "virto_mssql_data",
-    "virto_cms-content-data",
-    "virto_modules-data",
-    "virto_esdata01",
-    "virto_redisdata"
-)
-foreach ($fullVolName in $projectVolumes) {
-    docker volume inspect $fullVolName *> $null
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host "  - Removing leftover volume: $fullVolName" -ForegroundColor Cyan
-        docker volume rm $fullVolName *> $null
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "    Warning: failed to remove volume $fullVolName" -ForegroundColor Yellow
-        }
-    }
-}
-Write-Host "... VC solution stopped and all project volumes removed" -ForegroundColor Green
-
-Write-Host "Removing backend Docker image..." -ForegroundColor Yellow
-docker rmi vc-platform:local-latest
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Error: Failed to remove backend Docker image" -ForegroundColor Red
-    Write-Host "docker rmi command failed with exit code: $LASTEXITCODE" -ForegroundColor Red
-    # exit 1
-} else {
-    Write-Host "... Backend Docker image removed" -ForegroundColor Green
-}
-
-Write-Host "Removing frontend Docker image..." -ForegroundColor Yellow
-docker rmi vc-frontend:local-latest
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Error: Failed to remove frontend Docker image" -ForegroundColor Red
-    Write-Host "docker rmi command failed with exit code: $LASTEXITCODE" -ForegroundColor Red
-    # exit 1
-} else {
-    Write-Host "... Frontend Docker image removed" -ForegroundColor Green
-}
-
-Write-Host "Removing solution folder..." -ForegroundColor Yellow
-try {
-    Remove-Item -Recurse -Force $solutionFolder -ErrorAction Stop
-    Write-Host "... Solution folder removed" -ForegroundColor Green
-} catch {
-    Write-Host "Error: Failed to remove solution folder '$solutionFolder'" -ForegroundColor Red
-    Write-Host $_.Exception.Message -ForegroundColor Red
-    exit 1
-}
-
-Write-Host "Done" -ForegroundColor Green
+Write-Host "$($MyInvocation.MyCommand.Name) belongs to the old start-local layout, which this version no longer supports. Nothing was done." -ForegroundColor Red
+Write-Host '1. The old layout: download VirtoLocal_create_local_files.ps1 from the release/1.0 branch and run it, or pass -branch release/1.0 to your saved copy of the old installer.'
+Write-Host '2. The new layout: run install.ps1. It migrates this folder to the new version and keeps its data.'
+Write-Host '3. Warning: an old installer run over an existing folder has already regenerated the passwords in .env, so an existing database volume no longer accepts them. Restore the passwords from a backup of the old .env before you start the stack.'
+exit 1

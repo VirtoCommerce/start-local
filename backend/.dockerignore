@@ -1,0 +1,2 @@
+# The exported development certificate (SPEC §10) stays out of the image build context.
+certs/

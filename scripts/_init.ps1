@@ -1,0 +1,17 @@
+# Loads the helper libraries. Dot-source it: . "$PSScriptRoot/scripts/_init.ps1"
+# Library files define functions only and do nothing at load time.
+
+. "$PSScriptRoot/env-file.ps1"
+. "$PSScriptRoot/compose-files.ps1"
+. "$PSScriptRoot/source-mode.ps1"
+. "$PSScriptRoot/release-channel.ps1"
+. "$PSScriptRoot/options.ps1"
+. "$PSScriptRoot/migrate.ps1"
+. "$PSScriptRoot/settings-file.ps1"
+. "$PSScriptRoot/payload.ps1"
+. "$PSScriptRoot/docker-compose-helper.ps1"
+. "$PSScriptRoot/preflight.ps1"
+. "$PSScriptRoot/auth-helper.ps1"
+. "$PSScriptRoot/watch-url-up.ps1"
+. "$PSScriptRoot/admin-password.ps1"
+. "$PSScriptRoot/https-certs.ps1"

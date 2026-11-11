@@ -1,0 +1,30 @@
+# The Docker platform. Database, search, cache and storefront wiring comes from the platform-* link files.
+services:
+
+  vc-platform-web:
+    image: vc-platform:${COMPOSE_PROJECT_NAME}-latest
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${PLATFORM_PORT}:8080"
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - VirtoCommerce__AllowInsecureHttp=true
+      - VirtoCommerce__Hangfire__JobStorageType=Memory
+      - Assets__FileSystem__PublicUrl=http://localhost:${PLATFORM_PORT}/assets/
+      - Content__FileSystem__PublicUrl=http://localhost:${PLATFORM_PORT}/cms-content/
+    volumes:
+      - cms-content-data:/opt/virtocommerce/platform/wwwroot/cms-content
+      - modules-data:/opt/virtocommerce/platform/modules
+    networks:
+      - virto
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8080/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
+volumes:
+  cms-content-data:
+    name: ${VOLUME_PREFIX:-${COMPOSE_PROJECT_NAME}}_cms-content-data
+  modules-data:
+    name: ${VOLUME_PREFIX:-${COMPOSE_PROJECT_NAME}}_modules-data

@@ -1,0 +1,24 @@
+services:
+
+  vc-db:
+    image: mysql:${MYSQL_VERSION:-9.3}
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${MYSQL_PORT}:3306"
+    environment:
+      - MYSQL_DATABASE=VirtoCommerce3
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is empty in .env}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - virto
+    restart: unless-stopped
+    healthcheck:
+      # -h 127.0.0.1: the temporary server of the first start has networking off
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
+volumes:
+  mysql_data:
+    name: ${VOLUME_PREFIX:-${COMPOSE_PROJECT_NAME}}_mysql_data

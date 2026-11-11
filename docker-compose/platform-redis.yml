@@ -1,0 +1,9 @@
+# Link file, maintained by the scripts: the platform uses Redis as its cache backplane.
+services:
+
+  vc-platform-web:
+    environment:
+      - ConnectionStrings__RedisConnectionString=redis:6379,password=${REDIS_PASSWORD:?REDIS_PASSWORD is empty in .env}
+    depends_on:
+      redis:
+        condition: service_healthy

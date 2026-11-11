@@ -1,0 +1,20 @@
+{
+  "0": "https://raw.githubusercontent.com/VirtoCommerce/vc-modules/master/bundles/v0/package.json",
+  "1": "https://raw.githubusercontent.com/VirtoCommerce/vc-modules/master/bundles/v1/package.json",
+  "2": "https://raw.githubusercontent.com/VirtoCommerce/vc-modules/master/bundles/v2/package.json",
+  "3": "https://raw.githubusercontent.com/VirtoCommerce/vc-modules/master/bundles/v3/package.json",
+  "4": "https://raw.githubusercontent.com/VirtoCommerce/vc-modules/master/bundles/v4/package.json",
+  "5": "https://raw.githubusercontent.com/VirtoCommerce/vc-modules/master/bundles/v5/package.json",
+  "6": "https://raw.githubusercontent.com/VirtoCommerce/vc-modules/master/bundles/v6/package.json",
+  "7": "https://raw.githubusercontent.com/VirtoCommerce/vc-modules/master/bundles/v7/package.json",
+  "8": "https://raw.githubusercontent.com/VirtoCommerce/vc-modules/master/bundles/v8/package.json",
+  "9": "https://raw.githubusercontent.com/VirtoCommerce/vc-modules/master/bundles/v9/package.json",
+  "10": "https://raw.githubusercontent.com/VirtoCommerce/vc-modules/master/bundles/v10/package.json",
+  "11": "https://raw.githubusercontent.com/VirtoCommerce/vc-modules/master/bundles/v11/package.json",
+  "12": "https://raw.githubusercontent.com/VirtoCommerce/vc-modules/master/bundles/v12/package.json",
+  "14": "https://raw.githubusercontent.com/VirtoCommerce/vc-modules/master/bundles/v14/package.json",
+  "15": "https://raw.githubusercontent.com/VirtoCommerce/vc-modules/master/bundles/v15/package.json",
+  "16": "https://raw.githubusercontent.com/VirtoCommerce/vc-modules/master/bundles/v16/package.json",
+  "latest": "https://raw.githubusercontent.com/VirtoCommerce/vc-modules/master/bundles/latest/package.json"
+}
+

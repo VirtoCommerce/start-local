@@ -1,0 +1,16 @@
+# Overlay of platform.yml: Kestrel serves TLS with the development certificate, which build or start
+# exports and copies into dev/ of the certificates volume (SPEC §10). The volume is read-only here.
+services:
+
+  vc-platform-web:
+    environment:
+      - ASPNETCORE_URLS=https://+:8080
+      - VirtoCommerce__AllowInsecureHttp=false
+      - Assets__FileSystem__PublicUrl=https://localhost:${PLATFORM_PORT}/assets/
+      - Content__FileSystem__PublicUrl=https://localhost:${PLATFORM_PORT}/cms-content/
+      - Kestrel__Certificates__Default__Path=/certs/dev/localhost.pem
+      - Kestrel__Certificates__Default__KeyPath=/certs/dev/localhost.key
+    volumes:
+      - certs:/certs:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsk https://localhost:8080/health"]

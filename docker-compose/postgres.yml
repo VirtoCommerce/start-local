@@ -1,0 +1,25 @@
+services:
+
+  vc-db:
+    image: postgres:${PGSQL_VERSION:-18.3}
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${PGSQL_PORT}:5432"
+    environment:
+      - POSTGRES_DB=VirtoCommerce3
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is empty in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    networks:
+      - virto
+    restart: unless-stopped
+    healthcheck:
+      # -h 127.0.0.1: the temporary server of the first start listens on the socket only
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d VirtoCommerce3"]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
+volumes:
+  postgres_data:
+    name: ${VOLUME_PREFIX:-${COMPOSE_PROJECT_NAME}}_postgres_data

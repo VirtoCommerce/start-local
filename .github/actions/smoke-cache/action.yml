@@ -1,0 +1,43 @@
+# The caches shared by the smoke lanes (CIR item 1): the vc-build download folder and the NuGet cache are the largest
+# downloads of every lane. Also puts the .NET global tools (vc-build) on PATH.
+name: Smoke caches
+description: Put .NET global tools on PATH and cache the NuGet packages and vc-build downloads, keyed on the stable bundles.
+inputs:
+  key-prefix:
+    description: Prefix of the cache key, to keep the lanes' caches apart.
+    required: true
+  bundles-url:
+    description: The bundle list that vc-build resolves "stable" against (RELEASE_CHANNEL). Its hash keys the cache.
+    default: https://raw.githubusercontent.com/VirtoCommerce/vc-modules/refs/heads/master/bundles/stable.json
+runs:
+  using: composite
+  steps:
+    - name: Put .NET global tools (vc-build) on PATH
+      shell: pwsh
+      run: Add-Content -LiteralPath $env:GITHUB_PATH -Value (Join-Path $HOME '.dotnet/tools')
+
+    # hashFiles() sees only the workspace, so the bundle list is fetched and hashed here. When that fails the cache
+    # key degrades to "unknown": the run goes on, only the cache is stale.
+    - name: Hash the stable bundles
+      id: bundles
+      shell: pwsh
+      env:
+        BUNDLES_URL: ${{ inputs.bundles-url }}
+      run: |
+        $hash = 'unknown'
+        try {
+          $path = Join-Path $env:RUNNER_TEMP 'stable.json'
+          Invoke-WebRequest -Uri $env:BUNDLES_URL -OutFile $path
+          $hash = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+        }
+        catch { Write-Warning "Could not fetch the stable bundles: $($_.Exception.Message)" }
+        Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "hash=$hash"
+
+    - name: Cache NuGet packages and vc-build downloads
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.nuget/packages
+          ~/.vc-build/cache
+        key: ${{ inputs.key-prefix }}-${{ runner.os }}-${{ steps.bundles.outputs.hash }}
+        restore-keys: ${{ inputs.key-prefix }}-${{ runner.os }}-

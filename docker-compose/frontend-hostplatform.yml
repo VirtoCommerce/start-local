@@ -1,0 +1,9 @@
+# Link file, maintained by the scripts: the storefront runs in Docker and the platform runs on the host.
+# Linux needs the host-gateway entry for host.docker.internal.
+services:
+
+  vc-frontend:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - PLATFORM_UPSTREAM=host.docker.internal:${PLATFORM_PORT}

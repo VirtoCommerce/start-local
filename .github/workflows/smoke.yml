@@ -1,0 +1,119 @@
+# Full-stack smoke tests (SPEC §12, decision G1): a non-interactive install in HTTPS mode on every OS that can run Linux
+# containers, and a migration of a layout-1 folder created with release/1.0 (plan F1).
+# The runs are heavy and the Windows and macOS lanes need minutes of VM setup, so they run on demand, on pushes to dev
+# and release branches, and on pull requests that change the smoke itself, not on every pull request. The Unit and
+# Compose tiers are in ci.yml.
+# workflow_dispatch is offered only once this file is on the default branch. Until then, a pull request that adds the
+# file (for example from the feature branch to dev in a fork) starts the run.
+name: smoke
+on:
+  push:
+    branches: [dev, 'release/**']
+  pull_request:
+    paths: ['.github/workflows/smoke.yml', '.github/actions/smoke-cache/**', 'tests/smoke/**']
+  workflow_dispatch:
+permissions: { contents: read }
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+defaults: { run: { shell: bash } }
+jobs:
+  smoke:
+    name: smoke (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+          # The WSL2 provisioning freezes in 1-2% of the jobs (actions/runner-images#14938).
+          - os: windows-2025
+            timeout-minutes: 40
+          # macOS arm64 runners cannot start a VM; the Intel image can (probe, follow-up Amendments).
+          - os: macos-15-intel
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: ${{ matrix.timeout-minutes || 360 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Docker: native on Ubuntu; a Linux daemon in WSL2 on Windows, whose own daemon runs Windows containers only; colima on macOS.
+      - name: Install Docker in WSL2 and expose it to Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        timeout-minutes: 10
+        run: |
+          $distribution = 'Ubuntu-24.04'
+          wsl --install -d $distribution --no-launch
+          if ($LASTEXITCODE -ne 0) { throw "wsl --install exited with code $LASTEXITCODE." }
+          wsl -d $distribution -u root -- sh -c 'apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker.io >/dev/null'
+          if ($LASTEXITCODE -ne 0) { throw "Installing docker.io in WSL exited with code $LASTEXITCODE." }
+
+          # A running wsl.exe keeps the distribution, and so dockerd, alive for the rest of the job.
+          $dockerdLog = Join-Path $env:RUNNER_TEMP 'dockerd.log'
+          Start-Process -FilePath wsl.exe -ArgumentList '-d', $distribution, '-u', 'root', '--', 'dockerd', '-H', 'tcp://0.0.0.0:2375' `
+            -RedirectStandardOutput $dockerdLog -RedirectStandardError "$dockerdLog.err"
+          $isUp = $false
+          foreach ($attempt in 1..30) {
+            try {
+              $null = Invoke-WebRequest -Uri 'http://localhost:2375/_ping' -TimeoutSec 5
+              $isUp = $true
+              break
+            }
+            catch { Start-Sleep -Seconds 2 }
+          }
+          if (-not $isUp) {
+            Get-Content -LiteralPath $dockerdLog, "$dockerdLog.err" -ErrorAction Ignore
+            throw 'dockerd in WSL did not answer on tcp://localhost:2375 within 60 seconds.'
+          }
+          Add-Content -LiteralPath $env:GITHUB_ENV -Value 'DOCKER_HOST=tcp://localhost:2375'
+
+      # SPEC §15 #5: the Windows Docker CLI and Compose must reach the Linux daemon in WSL2.
+      - name: Verify that the Windows CLI reaches a Linux daemon (SPEC §15 #5)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $serverOs = (docker version --format '{{.Server.Os}}' 2>&1 | Out-String).Trim()
+          if ($serverOs -ne 'linux') {
+            throw "SPEC §15 #5 failed: 'docker version --format {{.Server.Os}}' printed '$serverOs' with DOCKER_HOST=$env:DOCKER_HOST, expected 'linux'. The Windows CLI does not reach the Linux daemon in WSL2."
+          }
+          Write-Host "Server.Os = $serverOs"
+          docker compose version
+
+      - name: Install Docker and colima (macOS)
+        if: runner.os == 'macOS'
+        timeout-minutes: 20
+        run: |
+          brew install colima docker docker-compose
+          mkdir -p ~/.docker
+          echo '{"cliPluginsExtraDirs":["'"$(brew --prefix)"'/lib/docker/cli-plugins"]}' > ~/.docker/config.json
+          docker compose version
+          colima start --cpu 3 --memory 6
+          docker info --format '{{.OSType}}/{{.Architecture}}'
+
+      # The probe reported .NET SDK 10 on the Ubuntu and Windows images only.
+      - name: Set up .NET (macOS)
+        if: runner.os == 'macOS'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      # PATH for vc-build, and the NuGet and vc-build download caches keyed on the stable bundles.
+      - uses: ./.github/actions/smoke-cache
+        with:
+          key-prefix: smoke
+
+      - name: Smoke
+        run: pwsh -NoProfile -File tests/smoke/Invoke-Smoke.ps1 -TargetFolder "$RUNNER_TEMP/sl-smoke"
+
+  migration:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/smoke-cache
+        with:
+          key-prefix: migration
+
+      - name: Migration smoke
+        run: pwsh -NoProfile -File tests/smoke/Invoke-MigrationSmoke.ps1 -WorkFolder "$RUNNER_TEMP/sl-migration"

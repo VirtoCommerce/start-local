@@ -1,0 +1,13 @@
+# For hosts that cap kernel resource limits (cloud VMs, CI). Opt-in: list it in COMPOSE_FILE.
+# single-node puts Elasticsearch in development mode, where failed bootstrap checks only warn.
+services:
+
+  es:
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=false
+      # Elasticsearch rejects cluster.initial_master_nodes together with discovery.type=single-node, and an
+      # empty value fails too ("null-valued setting"). An entry without "=" overrides the base file's value with
+      # "take it from the host environment", where the variable doesn't exist, so the container gets none.
+      - cluster.initial_master_nodes
+    ulimits: !reset {}

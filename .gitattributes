@@ -1,0 +1,7 @@
+*.sh text eol=lf
+*.template text eol=lf
+*.yml text eol=lf
+.env.example text eol=lf
+tests/fixtures/env/*.env text eol=lf
+tests/fixtures/env/layout1-edited-crlf.env -text
+tests/fixtures/env/bom.env -text

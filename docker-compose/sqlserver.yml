@@ -1,0 +1,23 @@
+services:
+
+  vc-db:
+    image: mcr.microsoft.com/mssql/server:${MSSQL_VERSION:-2022-latest}
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${MSSQL_PORT}:1433"
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is empty in .env}
+    volumes:
+      - mssql_data:/var/opt/mssql
+    networks:
+      - virto
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\" -b"]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
+volumes:
+  mssql_data:
+    name: ${VOLUME_PREFIX:-${COMPOSE_PROJECT_NAME}}_mssql_data

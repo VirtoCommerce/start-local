@@ -1,36 +1,30 @@
 function Get-AuthToken {
+    # Returns the access token, or $null when the platform refuses the sign-in or cannot be reached.
     param (
-        $appAuthUrl,
-        $username,
-        $password
+        [Parameter(Mandatory, Position = 0)]
+        [string]$AppAuthUrl,
+        [Parameter(Mandatory, Position = 1)]
+        [string]$Username,
+        [Parameter(Mandatory, Position = 2)]
+        [string]$Password
     )
-    Write-Host "Get-AuthToken: appAuthUrl $appAuthUrl"
-    $grant_type = "password"
-    $content_type = "application/x-www-form-urlencoded"
 
-    $body = @{username = $username; password = $password; grant_type = $grant_type }
+    # No retries: Watch-Url-Up has already proven the platform reachable, and a refused (400) sign-in
+    # must not be repeated, or the platform lockout could block the admin before the next candidate.
+    $body = @{ username = $Username; password = $Password; grant_type = 'password' }
     try {
-        $response = Invoke-WebRequest -Uri $appAuthUrl -Method Post -ContentType $content_type -Body $body -SkipCertificateCheck -MaximumRetryCount 5 -RetryIntervalSec 5
-    }
-    catch {
-        Write-Host "Error: Failed to obtain auth token from $appAuthUrl" -ForegroundColor Red
-        Write-Host $_.Exception.Message -ForegroundColor Red
-        exit 1
-    }
-
-    try {
+        $response = Invoke-WebRequest -Uri $AppAuthUrl -Method Post -ContentType 'application/x-www-form-urlencoded' -Body $body -SkipCertificateCheck
         $responseContent = $response.Content | ConvertFrom-Json
     }
     catch {
-        Write-Host "Error: Failed to parse auth response from $appAuthUrl" -ForegroundColor Red
-        Write-Host $_.Exception.Message -ForegroundColor Red
-        exit 1
+        Write-Verbose "Get-AuthToken: no token from ${AppAuthUrl}: $($_.Exception.Message)"
+        return $null
     }
 
     if ([string]::IsNullOrWhiteSpace($responseContent.access_token)) {
-        Write-Host "Error: Auth response from $appAuthUrl did not contain an access_token." -ForegroundColor Red
-        exit 1
+        Write-Verbose "Get-AuthToken: the response from $AppAuthUrl has no access_token."
+        return $null
     }
 
-    return $responseContent.access_token
+    return [string]$responseContent.access_token
 }

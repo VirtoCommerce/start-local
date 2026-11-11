@@ -2,13 +2,13 @@ Param(
     [parameter(Mandatory = $true)]
     $ApiUrl,
     $SampleDataSrc,
-    $Username = "admin",
-    $Password = "store"
+    # Admin password from .env. Empty falls back to the seeded one.
+    [string]$AdminPassword
 )
 
 $ErrorActionPreference = "Stop"
 
-. "$PSScriptRoot/auth-helper.ps1"
+. "$PSScriptRoot/_init.ps1"
 
 $sdStateUrl = "$ApiUrl/api/platform/pushnotifications"
 if ([string]::IsNullOrWhiteSpace($SampleDataSrc)) {
@@ -17,11 +17,9 @@ if ([string]::IsNullOrWhiteSpace($SampleDataSrc)) {
 else {
     $sdInstallUrl = "$ApiUrl/api/platform/sampledata/import?url=$SampleDataSrc"
 }
-$appAuthUrl = "$ApiUrl/connect/token"
-
-$authToken = Get-AuthToken $appAuthUrl $Username $Password
+$authToken = Get-AdminToken -ApiUrl $ApiUrl -AdminPassword $AdminPassword
 if ([string]::IsNullOrWhiteSpace($authToken)) {
-    Write-Host "Error: auth token is empty after Get-AuthToken." -ForegroundColor Red
+    Write-Host "Error: the platform at $ApiUrl accepts none of the admin passwords." -ForegroundColor Red
     exit 1
 }
 
