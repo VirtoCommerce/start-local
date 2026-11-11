@@ -1087,3 +1087,32 @@ The Windows lane verifies SPEC §15 #5 first: `docker version --format '{{.Serve
 - [ ] **Step 1: Write the two scripts and the workflow.**
 - [ ] **Step 2: Run** `pwsh -NoProfile -File tests/smoke/Invoke-Smoke.ps1 -TargetFolder $TMPDIR/sl-smoke` locally. Expected: PASS. Then run `Invoke-MigrationSmoke.ps1`, which needs F1. Expected: PASS. Without F1, record that it was skipped.
 - [ ] **Step 3: Commit:** `git add .github/workflows/smoke.yml tests/smoke/ && git rm .github/workflows/runner-probe.yml && git commit -m "Add smoke workflow and retire runner probe"`. The runs on GitHub are F4.
+
+## Amendments
+
+The original text above is unchanged.
+
+### 2026-11-11: compose files in a `docker-compose/` folder (after execution)
+
+This is a user decision made after all 20 tasks were done; it is not an executor ruling. SPEC records it in its *Amendments* (2026-11-11, "§5 tree, §6 and A8"). (Commit c110a9f.)
+
+- **The rule.** Only the base file, `docker-compose.yml`, stays in the solution folder. Every other `docker-compose.<suffix>.yml` named in this plan is now `docker-compose/<suffix>.yml`. That covers P1, P2, P8, P11 and P16, and Tasks 1, 7, 8, 13, 14, 16, 17 and 20.
+  - For example, `docker-compose.platform-postgres.yml` is now `docker-compose/platform-postgres.yml`.
+  - The generated file is now `docker-compose/platform-modules.yml`, and the `.gitignore` entry from Task 1 is now `/docker-compose/platform-modules.yml`.
+- **Task 2, catalog.** `Get-ComposeFileName` is the one place that builds a `COMPOSE_FILE` entry from a suffix, always with `/`. The catalog, `Get-ComposeFeatures`, `Get-DefaultComposeFiles`, the preflight port table, `start.ps1` and `Test-SourcePlatformMode` all call it; none of them spell out a name.
+  - `Get-ComposeFileList` reads a hand-written `\` as `/`.
+- **Task 15, source modules.** `Write-ModulesComposeFile` creates `docker-compose/` before it writes the file.
+- **Task 17, payload.**
+  - The allowlist entry `docker-compose*.yml` becomes `docker-compose.yml` plus the folder `docker-compose/`.
+  - `Copy-Payload` deletes exactly the three layout-1 provider files (`Get-LegacyComposeFileNames`) from a folder it installs into. Other root compose files are left alone.
+- **Tests.**
+  - `New-ComposeFixtureFolder` copies each listed file to its relative path, keeping the subfolder.
+  - The catalog-coverage test now checks that `docker-compose.yml` is the only compose file in the repo root, and that every file in `docker-compose/` is in the catalog.
+  - New tests cover the backslash reading, the refresh of an existing `docker-compose/` folder, and the layout-1 cleanup.
+- **Verified:**
+  - the Unit tier (486 tests);
+  - the Compose tier with a Docker daemon (3661 tests, none skipped);
+  - the Compose tier on Compose v2.18.0;
+  - `docker compose config` in a `Copy-Payload` folder with the default HTTPS list.
+
+  Not run: the smoke tier and the Windows and macOS lanes.
