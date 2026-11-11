@@ -105,9 +105,25 @@ try {
             Write-Host '... Installed modules checked' -ForegroundColor Green
         }
 
+        if ($skipSampleData) {
+            Write-Host 'Skipping sampledata setup (-skipSampleData)' -ForegroundColor Yellow
+        }
+        else {
+            Write-Host 'Setting up sampledata...' -ForegroundColor Yellow
+            $global:LASTEXITCODE = 0
+            & (Join-Path $PSScriptRoot 'scripts/setup-sampledata.ps1') -ApiUrl $platformUrl -AdminPassword ([string](Get-EnvValue -Document $document -Key 'ADMIN_PASSWORD'))
+            if ($LASTEXITCODE -ne 0) {
+                Write-Warning 'Sample data setup failed; the solution is running anyway.'
+            }
+            else {
+                Write-Host '... Sampledata set up' -ForegroundColor Green
+            }
+        }
+
         if ($isNonInteractive) {
-            # C1: a non-interactive run owns the admin password. A freshly generated one cannot be on the platform yet,
-            # so only the seeded password is tried to sign in.
+            # C1: a non-interactive run owns the admin password. After the sample data: its Users section updates admin
+            # with the seeded password hash. A freshly generated password cannot be on the platform yet, so only the
+            # seeded password is tried to sign in.
             $signInPassword = $adminPassword
             if ([string]::IsNullOrEmpty($adminPassword)) {
                 $adminPassword = New-RandomPassword
@@ -121,21 +137,6 @@ try {
             }
             elseif (Set-AdminPassword -ApiUrl $platformUrl -Token $adminToken -NewPassword $adminPassword) {
                 Write-Host 'Admin password applied from ADMIN_PASSWORD.' -ForegroundColor Green
-            }
-        }
-
-        if ($skipSampleData) {
-            Write-Host 'Skipping sampledata setup (-skipSampleData)' -ForegroundColor Yellow
-        }
-        else {
-            Write-Host 'Setting up sampledata...' -ForegroundColor Yellow
-            $global:LASTEXITCODE = 0
-            & (Join-Path $PSScriptRoot 'scripts/setup-sampledata.ps1') -ApiUrl $platformUrl -AdminPassword ([string](Get-EnvValue -Document $document -Key 'ADMIN_PASSWORD'))
-            if ($LASTEXITCODE -ne 0) {
-                Write-Warning 'Sample data setup failed; the solution is running anyway.'
-            }
-            else {
-                Write-Host '... Sampledata set up' -ForegroundColor Green
             }
         }
     }
